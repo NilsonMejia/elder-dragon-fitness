@@ -1,0 +1,417 @@
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+/* ================================================================
+   RESET Y PREVENCIÓN DE SCROLL
+   ================================================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { overflow-x: hidden; } /* Previene scroll horizontal */
+
+/* ================================================================
+   WRAPPER PRINCIPAL
+   ================================================================ */
+.login-wrapper {
+  position: relative;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 10%, #0a1a12 0%, #050608 60%);
+  color: #e8f5ee;
+  font-family: 'Montserrat', sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  padding: 40px 20px;
+}
+
+/* ================================================================
+   FONDOS DECORATIVOS (INMERSIVOS)
+   ================================================================ */
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(140px);
+  opacity: 0.45;
+  z-index: 0;
+  pointer-events: none;
+}
+.green-glow { width: 500px; height: 500px; background: #00ff88; top: -10%; left: -5%; }
+.blue-glow  { width: 450px; height: 450px; background: #0088ff; bottom: -10%; right: -5%; }
+
+.pulse-extreme       { animation: hyperPulse 5s alternate infinite cubic-bezier(0.4, 0, 0.2, 1); }
+.pulse-extreme-alt   { animation: hyperPulse 7s alternate-reverse infinite cubic-bezier(0.4, 0, 0.2, 1); }
+@keyframes hyperPulse {
+  0%   { transform: scale(0.85) rotate(0deg);   opacity: 0.35; }
+  100% { transform: scale(1.2) rotate(12deg);   opacity: 0.55; filter: blur(110px); }
+}
+
+.dragon-scales-overlay {
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 100% 150%, rgba(0, 255, 136, 0.04) 24%, transparent 25%),
+    radial-gradient(circle at 0% 150%,   rgba(0, 255, 136, 0.04) 24%, transparent 25%);
+  background-size: 60px 30px;
+  z-index: 0;
+  pointer-events: none;
+  mask-image: radial-gradient(circle at center, black 10%, transparent 90%);
+}
+.animate-pan { animation: panBackground 40s linear infinite; }
+@keyframes panBackground {
+  0%   { background-position: 0 0, 30px 0; }
+  100% { background-position: 600px 300px, 630px 300px; }
+}
+
+/* ================================================================
+   LAYOUT: 2 COLUMNAS
+   ================================================================ */
+.login-container {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 1080px;
+  display: grid;
+  grid-template-columns: 1fr 1.1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+/* ================================================================
+   LADO IZQUIERDO: BRANDING (REDISEÑADO Y CENTRADO)
+   ================================================================ */
+.login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Todo centrado como en la imagen */
+  text-align: center;
+  gap: 35px;
+  padding: 20px 0;
+}
+
+.brand-header-centered {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.brand-logo-badge {
+  width: 75px; height: 75px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 20px;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+}
+.dragon-img-logo {
+  width: 48px; height: 48px;
+  object-fit: cover;
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  filter: contrast(1.2) brightness(1.2);
+}
+.float-anim { animation: floatLogo 3.5s ease-in-out infinite; }
+@keyframes floatLogo {
+  0%, 100% { transform: translateY(0);    filter: drop-shadow(0 0 10px rgba(0,255,136,0.3)); }
+  50%      { transform: translateY(-6px); filter: drop-shadow(0 0 20px rgba(0,255,136,0.6)); }
+}
+
+.brand-title {
+  font-size: clamp(2.4rem, 4.5vw, 3.2rem);
+  font-weight: 900;
+  line-height: 1.05;
+  letter-spacing: -1px;
+  color: #f5f7fb;
+}
+.signature-text {
+  font-family: 'Great Vibes', cursive;
+  font-weight: 400;
+  font-size: 1.25em;
+  letter-spacing: 2px;
+}
+.neon-text {
+  background: linear-gradient(90deg, #00ff88, #00d4ff);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 20px rgba(0, 255, 136, 0.35));
+}
+
+.brand-tagline {
+  font-size: 1.05rem;
+  color: #9fb0a7;
+  line-height: 1.6;
+}
+
+.brand-features {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  text-align: left; /* Alineado a la izquierda pero el bloque está centrado */
+  width: 100%;
+  max-width: 260px;
+}
+.brand-features li {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 0.95rem;
+  color: #c9d6cf;
+  font-weight: 500;
+}
+.brand-features li span {
+  font-size: 1.2rem; /* Emojis más limpios sin cajas de fondo */
+}
+
+.brand-footer {
+  margin-top: 10px;
+  padding-top: 25px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  width: 100%;
+  max-width: 280px;
+}
+.brand-footer p { color: #55655d; font-size: 0.8rem; }
+
+/* ================================================================
+   LADO DERECHO: CARD DE LOGIN
+   ================================================================ */
+.login-card-extreme {
+  position: relative;
+  background: linear-gradient(160deg, #0b1016 0%, #070a0e 100%);
+  border: 1px solid rgba(0, 255, 136, 0.15);
+  border-radius: 26px;
+  padding: 44px 40px;
+  box-shadow:
+    0 25px 60px rgba(0, 0, 0, 0.7),
+    0 0 40px rgba(0, 255, 136, 0.08);
+  overflow: hidden;
+}
+.login-card-extreme::before {
+  content: '';
+  position: absolute;
+  top: -60%; left: -40%;
+  width: 180%; height: 180%;
+  background: radial-gradient(circle, rgba(0,255,136,0.06) 0%, transparent 55%);
+  pointer-events: none;
+}
+.login-header,
+.login-form,
+.back-btn { position: relative; z-index: 1; }
+
+/* ================================================================
+   HEADER DEL FORMULARIO
+   ================================================================ */
+.login-header { margin-bottom: 32px; text-align: center; }
+
+.login-chip {
+  display: inline-block;
+  padding: 6px 14px;
+  border-radius: 30px;
+  background: rgba(0, 255, 136, 0.08);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  color: #00ff88;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 14px;
+}
+.login-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #f5f7fb;
+  letter-spacing: -0.5px;
+  margin-bottom: 8px;
+}
+.login-subtitle {
+  font-size: 0.92rem;
+  color: #9fb0a7;
+  line-height: 1.6;
+}
+
+/* ================================================================
+   INPUTS Y FORMULARIO
+   ================================================================ */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+.input-group { text-align: left; }
+.input-group label {
+  display: block;
+  color: #b8c2d6;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.input-icon {
+  position: absolute;
+  left: 16px;
+  font-size: 1.05rem;
+  filter: grayscale(100%);
+  opacity: 0.5;
+  transition: all 0.3s;
+  pointer-events: none;
+}
+.input-wrapper input {
+  width: 100%;
+  background: #10161e;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 15px 16px 15px 46px;
+  color: #f5f7fb;
+  font-family: inherit;
+  font-size: 0.95rem;
+  transition: all 0.3s;
+  outline: none;
+}
+.input-wrapper input::placeholder { color: #4d5b6b; }
+.input-wrapper input:focus {
+  border-color: #00ff88;
+  background: #0d141b;
+  box-shadow: 0 0 0 3px rgba(0, 255, 136, 0.12);
+}
+.input-wrapper input:focus + .input-icon,
+.input-wrapper input:not(:placeholder-shown) + .input-icon {
+  filter: grayscale(0%);
+  opacity: 1;
+}
+
+/* ================================================================
+   OPCIONES (Recordar / Olvidé)
+   ================================================================ */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.checkbox-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+.checkbox-group input[type="checkbox"] {
+  accent-color: #00ff88;
+  width: 16px; height: 16px;
+  cursor: pointer;
+}
+.checkbox-group span { color: #9fb0a7; font-size: 0.85rem; font-weight: 500; }
+.forgot-password {
+  color: #00d4ff;
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+.forgot-password:hover { color: #00ff88; }
+
+/* ================================================================
+   BOTÓN PRINCIPAL
+   ================================================================ */
+.hyper-btn {
+  position: relative;
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  color: #050608;
+  border: none;
+  padding: 16px 32px;
+  border-radius: 50px;
+  font-family: inherit;
+  font-weight: 800;
+  font-size: 1rem;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 1;
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 12px 30px rgba(0, 255, 136, 0.28);
+  width: 100%;
+  margin-top: 10px;
+}
+.hyper-btn::before {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 50%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.7), transparent);
+  transform: skewX(-20deg);
+  animation: lightSweep 4s infinite;
+  z-index: -1;
+}
+@keyframes lightSweep {
+  0%         { left: -100%; }
+  20%, 100%  { left: 200%; }
+}
+.hyper-btn:hover {
+  transform: translateY(-3px) scale(1.01);
+  box-shadow: 0 18px 40px rgba(0, 212, 255, 0.4), 0 0 20px rgba(0,255,136,0.3);
+}
+.hyper-btn .arrow { transition: transform 0.3s; }
+.hyper-btn:hover .arrow { transform: translateX(5px); }
+
+/* ================================================================
+   BOTÓN VOLVER
+   ================================================================ */
+.back-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  padding-top: 24px;
+  margin-top: 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-bottom: none;
+  color: #7c8d85;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.back-btn:hover { color: #00ff88; transform: translateX(-4px); }
+
+/* ================================================================
+   ANIMACIONES
+   ================================================================ */
+.animate-fade-up { animation: fadeUp 0.9s cubic-bezier(0.165, 0.84, 0.44, 1) both; }
+.animate-fade-left { animation: fadeLeft 0.9s cubic-bezier(0.165, 0.84, 0.44, 1) both; }
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(40px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ================================================================
+   RESPONSIVE
+   ================================================================ */
+@media (max-width: 900px) {
+  .login-container {
+    grid-template-columns: 1fr;
+    max-width: 480px;
+    gap: 50px;
+  }
+}
+@media (max-width: 480px) {
+  .login-wrapper { padding: 20px 14px; }
+  .login-card-extreme { padding: 34px 24px; }
+  .brand-title { font-size: 2.2rem; }
+  .form-options { flex-direction: column; align-items: flex-start; gap: 14px; }
+}

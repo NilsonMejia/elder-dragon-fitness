@@ -1,12 +1,19 @@
 import React from 'react';
-import Home from './views/Home'; // Importamos tu nueva vista
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+
+// Importamos nuestras vistas
+import Home from './views/Home';
+import Login from './views/Login';
 
 function App() {
   return (
-    <div>
-      {/* Aquí le decimos a React que renderice el Homepage */}
-      <Home />
-    </div>
+    <Router>
+      {/* Todo lo que esté dentro de Routes cambiará dinámicamente con animaciones */}
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </Router>
   );
 }
 
