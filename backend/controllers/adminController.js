@@ -258,9 +258,11 @@ const createUsuario = async (req, res) => {
     const passwordHash = await bcrypt.hash(temporaryPassword, SALT_ROUNDS);
 
     const { rows } = await client.query(
-      `INSERT INTO usuarios (id_rol, nombre, apellido, email, password_hash, telefono, estado)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
-      RETURNING id_usuario, id_rol, nombre, apellido, email, telefono, estado`,
+      `INSERT INTO usuarios (
+        id_rol, nombre, apellido, email, password_hash, telefono, estado, debe_cambiar_password
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, true)
+      RETURNING id_usuario, id_rol, nombre, apellido, email, telefono, estado, debe_cambiar_password`,
       [roleId, nombre, apellido, email, passwordHash, telefono || null, estado]
     );
 

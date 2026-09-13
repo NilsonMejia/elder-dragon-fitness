@@ -1,8 +1,10 @@
 const crypto = require('crypto');
 
 const generateTemporaryPassword = () => {
-  const token = crypto.randomBytes(6).toString('base64url');
-  return `Edf-${token}1!`;
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = crypto.randomBytes(8);
+
+  return Array.from(bytes, (byte) => characters[byte % characters.length]).join('');
 };
 
 module.exports = {

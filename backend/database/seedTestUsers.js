@@ -60,11 +60,14 @@ const seed = async () => {
       );
 
       await client.query(
-        `INSERT INTO usuarios (id_rol, nombre, apellido, email, password_hash, telefono, estado)
-        VALUES ($1, $2, $3, $4, $5, $6, 'Activo')
+        `INSERT INTO usuarios (
+          id_rol, nombre, apellido, email, password_hash, telefono, estado, debe_cambiar_password
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, 'Activo', false)
         ON CONFLICT (email) DO UPDATE
         SET password_hash = EXCLUDED.password_hash,
-          estado = 'Activo'`,
+          estado = 'Activo',
+          debe_cambiar_password = false`,
         [
           roleResult.rows[0].id_rol,
           user.nombre,
@@ -77,7 +80,7 @@ const seed = async () => {
     }
 
     await client.query(
-      "UPDATE usuarios SET password_hash = $1 WHERE password_hash = 'hash_123'",
+      "UPDATE usuarios SET password_hash = $1, debe_cambiar_password = false WHERE password_hash = 'hash_123'",
       [passwordHash]
     );
 

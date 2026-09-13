@@ -23,7 +23,8 @@ CREATE TABLE usuarios (
     email VARCHAR(150) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL, -- Contraseñas hasheadas (Bcrypt)
     telefono VARCHAR(20),
-    estado VARCHAR(20) DEFAULT 'Activo' -- Activo, Inactivo, Moroso
+    estado VARCHAR(20) DEFAULT 'Activo', -- Activo, Inactivo, Moroso
+    debe_cambiar_password BOOLEAN NOT NULL DEFAULT true
 );
 
 -- 20 Registros de Usuarios Reales (1 Admin, 2 Recepcionistas, 3 Entrenadores, 14 Clientes)
@@ -48,6 +49,9 @@ INSERT INTO usuarios (id_rol, nombre, apellido, email, password_hash, telefono, 
 (4, 'Elena', 'Cruz', 'elena.cruz@outlook.com', 'hash_123', '7200-0018', 'Activo'),
 (4, 'Andrés', 'Ortiz', 'andres.ortiz@gmail.com', 'hash_123', '7200-0019', 'Activo'),
 (4, 'Patricia', 'Reyes', 'patty.reyes@gmail.com', 'hash_123', '7200-0020', 'Inactivo');
+
+UPDATE usuarios
+SET debe_cambiar_password = false;
 
 
 -- ------------------------------------------------------------------------------
