@@ -1,7 +1,7 @@
 import React from 'react';
 import '../../css/Admin.css';
 
-const Reportes = () => {
+const Configuracion = () => {
   return (
     <div className="admin-layout">
       <aside className="admin-sidebar">
@@ -10,43 +10,47 @@ const Reportes = () => {
           <a href="/dashboard">Dashboard</a>
           <a href="/usuarios">Gestión de Usuarios</a>
           <a href="/planes">Planes de Membresía</a>
-          <a href="/reportes" className="active">Reportes</a>
-          <a href="/configuracion">Configuración</a>
+          <a href="/reportes">Reportes</a>
+          <a href="/configuracion" className="active">Configuración</a>
         </nav>
       </aside>
 
       <main className="admin-content">
         <header className="content-header">
-          <h1>Reportes Financieros</h1>
-          <p>Exporta la contabilidad y auditoría del sistema.</p>
+          <h1>Configuración del Sistema</h1>
+          <p>Ajustes globales para la facturación electrónica y parámetros legales.</p>
         </header>
 
-        <div className="report-filters">
-          <div className="filter-group">
-            <label>Fecha Inicio</label>
-            <input type="date" className="admin-input" />
+        <form className="config-form">
+          <div className="config-section">
+            <h3>Datos Fiscales del Gimnasio</h3>
+            <div className="input-group">
+              <label>Nombre Legal</label>
+              <input type="text" className="admin-input" defaultValue="Elder Dragón Fitness S.A de C.V" />
+            </div>
+            <div className="input-group">
+              <label>NIT / NRC</label>
+              <input type="text" className="admin-input" defaultValue="0000-000000-000-0" />
+            </div>
+            <div className="input-group">
+              <label>Dirección Sucursal Principal</label>
+              <input type="text" className="admin-input" defaultValue="Universidad Católica de El Salvador, Santa Ana" />
+            </div>
           </div>
-          <div className="filter-group">
-            <label>Fecha Fin</label>
-            <input type="date" className="admin-input" />
-          </div>
-          <div className="filter-group">
-            <label>Tipo de Reporte</label>
-            <select className="admin-input">
-              <option>Ingresos por Membresía</option>
-              <option>Clientes Morosos</option>
-              <option>Nuevos Registros</option>
-            </select>
-          </div>
-        </div>
 
-        <div className="report-actions">
-          <button className="admin-btn-secondary">Generar PDF</button>
-          <button className="admin-btn-secondary excel">Exportar Excel</button>
-        </div>
+          <div className="config-section">
+            <h3>Parámetros Operativos</h3>
+            <div className="input-group">
+              <label>Impuesto (IVA %)</label>
+              <input type="number" className="admin-input" defaultValue="13" />
+            </div>
+          </div>
+
+          <button type="button" className="admin-btn-primary">Guardar Cambios</button>
+        </form>
       </main>
     </div>
   );
 };
 
-export default Reportes;
+export default Configuracion;
