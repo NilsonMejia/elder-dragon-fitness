@@ -21,83 +21,160 @@ const resolveRoleId = async (client, { id_rol, rol }) => {
 
   return rows[0]?.id_rol || null;
 };
-
-// =========================================================================
-// DASHBOARD CORREGIDO (Sin duplicados y adaptado para el gráfico)
-// =========================================================================
 const getDashboardStats = async (req, res) => {
   try {
     const [
-      usuarios,
       clientes,
-      membresias,
       ingresosMes,
-      pagosHoy,
       rutinas,
-      grafico // Consulta para el gráfico de Recharts
+      graficoIngresos,
+      graficoPlanes, 
+      graficoMembresias,
+      actividad,     
+      topClientesDB,
+      // ================= NUEVAS CONSULTAS =================
+      nuevosMesDB,
+      cancelacionesDB,
+      asistenciaProxyDB,
+      ocupacionDB
     ] = await Promise.all([
-      pool.query('SELECT COUNT(*)::int AS total FROM usuarios'),
+      // 0. Clientes Activos/Morosos
       pool.query(
         `SELECT
-          COUNT(*) FILTER (WHERE r.nombre_rol = 'Cliente')::int AS total,
           COUNT(*) FILTER (WHERE r.nombre_rol = 'Cliente' AND u.estado = 'Activo')::int AS activos,
-          COUNT(*) FILTER (WHERE r.nombre_rol = 'Cliente' AND u.estado = 'Moroso')::int AS morosos,
-          COUNT(*) FILTER (WHERE r.nombre_rol = 'Cliente' AND u.estado = 'Inactivo')::int AS inactivos
+          COUNT(*) FILTER (WHERE r.nombre_rol = 'Cliente' AND u.estado = 'Moroso')::int AS morosos
         FROM usuarios u
         INNER JOIN roles r ON r.id_rol = u.id_rol`
       ),
-      pool.query(
-        `SELECT
-          COUNT(*) FILTER (WHERE estado = 'Activa')::int AS activas,
-          COUNT(*) FILTER (WHERE estado = 'Morosa')::int AS morosas,
-          COUNT(*) FILTER (WHERE fecha_fin < CURRENT_DATE)::int AS vencidas
-        FROM membresias`
-      ),
+      // 1. Ingresos
       pool.query(
         `SELECT COALESCE(SUM(monto), 0)::numeric AS total
         FROM pagos
         WHERE fecha_pago >= date_trunc('month', CURRENT_DATE)`
       ),
-      pool.query(
-        `SELECT COALESCE(SUM(monto), 0)::numeric AS total, COUNT(*)::int AS cantidad
-        FROM pagos
-        WHERE fecha_pago::date = CURRENT_DATE`
-      ),
+      // 2. Rutinas
       pool.query('SELECT COUNT(*)::int AS total FROM rutinas'),
+      
+      // 3. Gráfico de Ingresos
+      pool.query(
+        `SELECT to_char(fecha_pago, 'Mon') AS mes, COALESCE(SUM(monto), 0)::numeric AS ingresos
+        FROM pagos 
+        WHERE fecha_pago >= date_trunc('month', CURRENT_DATE) - INTERVAL '4 months'
+        GROUP BY to_char(fecha_pago, 'Mon'), date_trunc('month', fecha_pago) 
+        ORDER BY date_trunc('month', fecha_pago) ASC`
+      ),
+      
+      // 4. Gráfico de Planes
+      pool.query(
+        `SELECT pl.nombre_plan AS name, COUNT(m.id_membresia)::int AS value
+        FROM membresias m
+        INNER JOIN planes pl ON m.id_plan = pl.id_plan
+        WHERE m.estado = 'Activa'
+        GROUP BY pl.nombre_plan`
+      ),
+      
+      // 5. Gráfico de Membresías
       pool.query(
         `SELECT 
-          to_char(fecha_pago, 'Mon') AS mes,
-          COALESCE(SUM(monto), 0)::numeric AS ingresos
-        FROM pagos
-        WHERE fecha_pago >= date_trunc('month', CURRENT_DATE) - INTERVAL '4 months'
-        GROUP BY to_char(fecha_pago, 'Mon'), date_trunc('month', fecha_pago)
-        ORDER BY date_trunc('month', fecha_pago) ASC`
+          to_char(fecha_inicio, 'Mon') AS mes,
+          COUNT(*) FILTER (WHERE estado = 'Activa')::int AS activos,
+          COUNT(*) FILTER (WHERE estado = 'Morosa')::int AS morosos
+        FROM membresias
+        WHERE fecha_inicio >= date_trunc('month', CURRENT_DATE) - INTERVAL '4 months'
+        GROUP BY to_char(fecha_inicio, 'Mon'), date_trunc('month', fecha_inicio)
+        ORDER BY date_trunc('month', fecha_inicio) ASC`
+      ),
+
+      // 6. Actividad Reciente
+      pool.query(
+        `SELECT 
+          p.id_pago AS id, 
+          'pago' AS tipo, 
+          'Pago de $' || p.monto || ' por ' || u.nombre AS texto, 
+          to_char(p.fecha_pago, 'DD Mon YYYY HH12:MI AM') AS hora
+        FROM pagos p
+        INNER JOIN membresias m ON p.id_membresia = m.id_membresia
+        INNER JOIN usuarios u ON m.id_cliente = u.id_usuario
+        ORDER BY p.fecha_pago DESC
+        LIMIT 5`
+      ),
+
+      // 7. Top Clientes
+      pool.query(
+        `SELECT 
+          u.id_usuario AS id, 
+          u.nombre || ' ' || u.apellido AS nombre, 
+          pl.nombre_plan AS plan, 
+          20 AS asistencia, 
+          COALESCE(SUM(p.monto), 0)::numeric AS gasto
+        FROM usuarios u
+        INNER JOIN membresias m ON u.id_usuario = m.id_cliente
+        INNER JOIN planes pl ON m.id_plan = pl.id_plan
+        INNER JOIN pagos p ON m.id_membresia = p.id_membresia
+        WHERE u.id_rol = 4
+        GROUP BY u.id_usuario, u.nombre, u.apellido, pl.nombre_plan
+        ORDER BY gasto DESC
+        LIMIT 5`
+      ),
+
+      // ================= LÓGICA DE NUEVOS KPIs =================
+      
+      // 8. Nuevos este mes (Membresías que iniciaron este mes)
+      pool.query(
+        `SELECT COUNT(*)::int AS total FROM membresias 
+         WHERE fecha_inicio >= date_trunc('month', CURRENT_DATE)`
+      ),
+
+      // 9. Cancelaciones (Membresías vencidas o marcadas como inactivas)
+      pool.query(
+        `SELECT COUNT(*)::int AS total FROM membresias 
+         WHERE fecha_fin < CURRENT_DATE OR estado = 'Inactiva'`
+      ),
+
+      // 10. Asistencia Hoy (Proxy: Personas que interactuaron pagando hoy)
+      pool.query(
+        `SELECT COUNT(*)::int AS total FROM pagos 
+         WHERE fecha_pago::date = CURRENT_DATE`
+      ),
+
+      // 11. Ocupación (Cálculo del % basado en un máximo de 200 personas)
+      pool.query(
+        `SELECT LEAST(ROUND((COUNT(*)::numeric / 200.0) * 100), 100)::int AS porcentaje 
+         FROM usuarios 
+         WHERE estado = 'Activo' AND id_rol = 4`
       )
     ]);
+
+    const colores = ['#00d4ff', '#00ff88', '#bb00ff', '#ff4d4d'];
+    const chartPlanes = graficoPlanes.rows.map((plan, index) => ({
+      ...plan,
+      color: colores[index % colores.length]
+    }));
 
     return res.json({
       stats: {
         activos: clientes.rows[0].activos,
         morosos: clientes.rows[0].morosos,
         ingresos: Number(ingresosMes.rows[0].total),
-        rutinas: rutinas.rows[0].total
+        rutinas: rutinas.rows[0].total,
+        // Insertamos los 4 nuevos valores a la respuesta de la API
+        nuevosMes: nuevosMesDB.rows[0].total,
+        cancelaciones: cancelacionesDB.rows[0].total,
+        asistenciaHoy: asistenciaProxyDB.rows[0].total,
+        ocupacion: ocupacionDB.rows[0].porcentaje
       },
-      chart: grafico.rows.length > 0 ? grafico.rows : [{ mes: 'Actual', ingresos: Number(ingresosMes.rows[0].total) }],
-      detalles_extra: {
-        usuarios: usuarios.rows[0],
-        membresias: membresias.rows[0],
-        pagosHoy: {
-          total: Number(pagosHoy.rows[0].total),
-          cantidad: pagosHoy.rows[0].cantidad,
-        }
-      }
+      chartIngresos: graficoIngresos.rows,
+      chartPlanes: chartPlanes,
+      chartMembresias: graficoMembresias.rows,
+      actividadReciente: actividad.rows,
+      topClientes: topClientesDB.rows
     });
+    
   } catch (error) {
     console.error('Error obteniendo dashboard:', error);
     return res.status(500).json({ message: 'Error interno del servidor.' });
   }
 };
-// =========================================================================
 
 const getUsuarios = async (req, res) => {
   const { rol, estado } = req.query;
