@@ -3,6 +3,9 @@ const cors = require('cors');
 require('dotenv').config();
 
 const authRoutes = require('./routes/authRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const recepcionRoutes = require('./routes/recepcionRoutes');
+const deportivoRoutes = require('./routes/deportivoRoutes');
 
 // Inicializamos la aplicación
 const app = express();
@@ -13,6 +16,13 @@ app.use(express.json()); // Permite recibir datos en formato JSON
 
 // Rutas de la API
 app.use('/api/auth', authRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/recepcion', recepcionRoutes);
+app.use('/api/deportivo', deportivoRoutes);
+
+app.get('/api/health', (req, res) => {
+    res.json({ status: 'ok', service: 'Elder Dragon Fitness API' });
+});
 
 // Ruta de prueba
 app.get('/', (req, res) => {

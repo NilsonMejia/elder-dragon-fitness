@@ -1,53 +1,38 @@
 import React from 'react';
-import '../../css/Admin.css';
+import { AdminPageShell } from './Dashboard';
+import '../../css/admin.css';
 
-const Planes = () => {
-  return (
-    <div className="admin-layout">
-      <aside className="admin-sidebar">
-        <h2 className="sidebar-brand">Elder <span>Dragón</span></h2>
-        <nav className="sidebar-nav">
-          <a href="/dashboard">Dashboard</a>
-          <a href="/usuarios">Gestión de Usuarios</a>
-          <a href="/planes" className="active">Planes de Membresía</a>
-          <a href="/reportes">Reportes</a>
-          <a href="/configuracion">Configuración</a>
-        </nav>
-      </aside>
+const planes = [
+  { id: 1, nombre: 'Pase Diario', precio: 3, duracion: 1 },
+  { id: 2, nombre: 'Quincenal', precio: 15, duracion: 15 },
+  { id: 3, nombre: 'Mensual Estandar', precio: 25, duracion: 30 },
+  { id: 4, nombre: 'Trimestral VIP', precio: 65, duracion: 90, premium: true },
+  { id: 5, nombre: 'Anual Premium', precio: 220, duracion: 365, premium: true },
+];
 
-      <main className="admin-content">
-        <header className="content-header flex-between">
-          <div>
-            <h1>Planes de Membresía</h1>
-            <p>Configura los precios y duración de los planes.</p>
-          </div>
-          <button className="admin-btn-primary">+ Crear Plan</button>
-        </header>
+const Planes = () => (
+  <AdminPageShell>
+    <header className="content-header">
+      <div>
+        <h1>Planes de Membresia</h1>
+        <p>Configura precios, beneficios y duracion de cada acceso.</p>
+      </div>
+      <div className="header-actions">
+        <button className="btn-gradient">+ Crear Plan</button>
+      </div>
+    </header>
 
-        <div className="planes-grid">
-          {/* Datos extraídos de tu SQL */}
-          <div className="plan-card">
-            <h3>Mensual Estándar</h3>
-            <div className="plan-price">$25.00</div>
-            <p>Duración: 30 días</p>
-            <button className="btn-edit-full">Modificar Precio</button>
-          </div>
-          <div className="plan-card">
-            <h3>Trimestral VIP</h3>
-            <div className="plan-price">$65.00</div>
-            <p>Duración: 90 días</p>
-            <button className="btn-edit-full">Modificar Precio</button>
-          </div>
-          <div className="plan-card premium">
-            <h3>Anual Premium</h3>
-            <div className="plan-price">$220.00</div>
-            <p>Duración: 365 días</p>
-            <button className="btn-edit-full">Modificar Precio</button>
-          </div>
-        </div>
-      </main>
-    </div>
-  );
-};
+    <section className="planes-grid">
+      {planes.map((plan) => (
+        <article key={plan.id} className={`plan-card ${plan.premium ? 'premium' : ''}`}>
+          <h3>{plan.nombre}</h3>
+          <div className="plan-price">${plan.precio.toFixed(2)}</div>
+          <p>Duracion: {plan.duracion} dias</p>
+          <button className="btn-edit-full">Modificar Precio</button>
+        </article>
+      ))}
+    </section>
+  </AdminPageShell>
+);
 
 export default Planes;

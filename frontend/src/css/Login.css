@@ -315,6 +315,13 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
 }
 .forgot-password:hover { color: #00ff88; }
 
+.login-error {
+  color: #ff6b6b;
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: center;
+}
+
 /* ================================================================
    BOTÓN PRINCIPAL
    ================================================================ */
@@ -358,6 +365,11 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
 .hyper-btn:hover {
   transform: translateY(-3px) scale(1.01);
   box-shadow: 0 18px 40px rgba(0, 212, 255, 0.4), 0 0 20px rgba(0,255,136,0.3);
+}
+.hyper-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
+  transform: none;
 }
 .hyper-btn .arrow { transition: transform 0.3s; }
 .hyper-btn:hover .arrow { transform: translateX(5px); }
