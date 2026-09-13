@@ -4,7 +4,7 @@
    RESET Y PREVENCIÓN DE SCROLL
    ================================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { overflow-x: hidden; } /* Previene scroll horizontal */
+html, body { overflow-x: hidden; }
 
 /* ================================================================
    WRAPPER PRINCIPAL
@@ -79,7 +79,7 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
 .login-brand {
   display: flex;
   flex-direction: column;
-  align-items: center; /* Todo centrado como en la imagen */
+  align-items: center;
   text-align: center;
   gap: 35px;
   padding: 20px 0;
@@ -145,7 +145,7 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
   display: flex;
   flex-direction: column;
   gap: 16px;
-  text-align: left; /* Alineado a la izquierda pero el bloque está centrado */
+  text-align: left;
   width: 100%;
   max-width: 260px;
 }
@@ -158,7 +158,7 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
   font-weight: 500;
 }
 .brand-features li span {
-  font-size: 1.2rem; /* Emojis más limpios sin cajas de fondo */
+  font-size: 1.2rem;
 }
 
 .brand-footer {
@@ -265,7 +265,7 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
   background: #10161e;
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 14px;
-  padding: 15px 16px 15px 46px;
+  padding: 15px 50px 15px 46px; /* padding-right ampliado para el botón del ojo */
   color: #f5f7fb;
   font-family: inherit;
   font-size: 0.95rem;
@@ -282,6 +282,39 @@ html, body { overflow-x: hidden; } /* Previene scroll horizontal */
 .input-wrapper input:not(:placeholder-shown) + .input-icon {
   filter: grayscale(0%);
   opacity: 1;
+}
+
+/* ================================================================
+   BOTÓN TOGGLE DE CONTRASEÑA (SVG)
+   ================================================================ */
+.toggle-password-btn {
+  position: absolute;
+  right: 14px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 8px;
+  color: #8e9ba8;
+  transition: all 0.25s ease;
+}
+
+.toggle-password-btn:hover {
+  background: rgba(0, 255, 136, 0.08);
+  color: #00ff88;
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.15);
+}
+
+.toggle-password-btn svg {
+  display: block;
+  transition: stroke 0.25s ease, transform 0.25s ease;
+}
+
+.toggle-password-btn:hover svg {
+  transform: scale(1.08);
 }
 
 /* ================================================================

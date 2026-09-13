@@ -28,7 +28,7 @@ const Home = () => {
           </div>
         </div>
         <nav className="nav-menu">
-          <a href="#rutinas" className="hover-underline">Rutinas</a>
+          
           <a href="#zonas" className="hover-underline">Zonas</a>
           <a href="#ubicacion" className="hover-underline">Ubicación</a>
           <button className="login-btn neon-border" onClick={() => navigate('/login')}>
@@ -82,8 +82,8 @@ const Home = () => {
             </button>
           </div>
           <div className="hero-stats">
-            <div className="stat float-stat-1"><h3>+5K</h3><p>Atletas</p></div>
-            <div className="stat float-stat-2"><h3>+120</h3><p>Rutinas</p></div>
+            <div className="stat float-stat-1"><h3>+5K</h3><p>Clientes</p></div>
+            <div className="stat float-stat-2"><h3>+5</h3><p>Entrenadores</p></div>
             <div className="stat float-stat-3"><h3>24/7</h3><p>Control</p></div>
           </div>
         </div>
