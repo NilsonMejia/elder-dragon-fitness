@@ -2,8 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 // Importamos nuestras vistas
-import Home from './views/Home';
-import Login from './views/Login';
+// En lugar de tener todo suelto, ahora se ve así:
+import Home from './views/public/Home';
+import Login from './views/public/Login';
+import Dashboard from './views/admin/Dashboard';
+import Clientes from './views/recepcion/Clientes';
 
 function App() {
   return (
@@ -12,6 +15,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/clientes" element={<Clientes />} />
       </Routes>
     </Router>
   );
