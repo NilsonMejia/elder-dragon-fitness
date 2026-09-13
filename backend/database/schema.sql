@@ -231,3 +231,94 @@ INSERT INTO detalle_rutinas (id_rutina, id_ejercicio, series, repeticiones, peso
 (10, 15, 4, 10, 60.00, 60), -- Press Francés en Rutina 10
 (10, 13, 4, 12, 35.00, 60), -- Curl Martillo en Rutina 10
 (11, 4, 4, 8, 185.00, 120); -- Sentadilla en Rutina 11
+
+
+
+-- 1. Limpiamos los datos de prueba viejos para evitar conflictos
+TRUNCATE TABLE detalle_rutinas CASCADE;
+TRUNCATE TABLE rutinas CASCADE;
+
+-- 2. Cambiamos el nombre de la columna vieja para que coincida con Node.js
+ALTER TABLE rutinas
+RENAME COLUMN nombre_rutina TO nombre;
+
+-- 3. Agregamos las nuevas columnas del catálogo visual
+ALTER TABLE rutinas
+ADD COLUMN grupo VARCHAR(50) DEFAULT 'General',
+ADD COLUMN nivel VARCHAR(50) DEFAULT 'Principiante',
+ADD COLUMN duracion INT DEFAULT 45,
+ADD COLUMN calorias INT DEFAULT 300,
+ADD COLUMN tipo_media VARCHAR(20) DEFAULT 'imagen',
+ADD COLUMN media_url TEXT;
+
+-- 4. Hacemos que cliente y entrenador sean opcionales 
+-- (ya que ahora son "Plantillas Base" del sistema y no asignaciones específicas)
+ALTER TABLE rutinas ALTER COLUMN id_entrenador DROP NOT NULL;
+ALTER TABLE rutinas ALTER COLUMN id_cliente DROP NOT NULL;
+ALTER TABLE rutinas ALTER COLUMN fecha_asignacion DROP NOT NULL;
+
+
+
+-- 1. Actualizamos la tabla de detalles para que coincida exactamente con React
+DROP TABLE IF EXISTS detalle_rutinas CASCADE;
+CREATE TABLE detalle_rutinas (
+    id_detalle SERIAL PRIMARY KEY,
+    id_rutina INT REFERENCES rutinas(id_rutina) ON DELETE CASCADE,
+    texto VARCHAR(150) NOT NULL,
+    series VARCHAR(50),
+    peso VARCHAR(50)
+);
+
+-- 2. Insertamos las 9 Plantillas Base
+INSERT INTO rutinas (id_rutina, nombre, grupo, nivel, duracion, calorias, tipo_media, media_url) VALUES
+(1, 'Hipertrofia Pecho y Tríceps', 'Pecho', 'Intermedio', 60, 450, 'imagen', 'https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=800&q=80'),
+(2, 'Amplitud de Espalda Total', 'Espalda', 'Avanzado', 65, 480, 'imagen', 'https://images.unsplash.com/photo-1603287681836-b174ce5074c2?auto=format&fit=crop&w=800&q=80'),
+(3, 'Fuerza Pierna Completa', 'Pierna', 'Avanzado', 75, 620, 'imagen', 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?auto=format&fit=crop&w=800&q=80'),
+(4, 'Hombros Rocosos 3D', 'Hombro', 'Intermedio', 45, 320, 'imagen', 'https://images.unsplash.com/photo-1534438327276-14e5300c3a48?auto=format&fit=crop&w=800&q=80'),
+(5, 'Bíceps Picos de Montaña', 'Bíceps', 'Principiante', 35, 200, 'imagen', 'https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?auto=format&fit=crop&w=800&q=80'),
+(6, 'Tríceps Herradura de Hierro', 'Tríceps', 'Intermedio', 35, 220, 'imagen', 'https://images.unsplash.com/photo-1530822847156-5df684ec5ee1?auto=format&fit=crop&w=800&q=80'),
+(7, 'Core Abdomen Blindado', 'Core', 'Principiante', 20, 150, 'imagen', 'https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=800&q=80'),
+(8, 'Quema de Grasa Extrema', 'Cardio', 'Intermedio', 40, 500, 'imagen', 'https://images.unsplash.com/photo-1538805060514-97d9cc17730c?auto=format&fit=crop&w=800&q=80'),
+(9, 'Acondicionamiento Full Body', 'Full Body', 'Principiante', 45, 380, 'imagen', 'https://images.unsplash.com/photo-1517836357463-d25dfe09ce1e?auto=format&fit=crop&w=800&q=80');
+
+-- Ajustamos el contador para que la próxima rutina que crees empiece en 10
+SELECT setval('rutinas_id_rutina_seq', 9);
+
+-- 3. Insertamos los ejercicios de cada plantilla
+INSERT INTO detalle_rutinas (id_rutina, texto, series, peso) VALUES
+-- Pecho
+(1, 'Press banca', '4x10', 'Libre'),
+(1, 'Press inclinado', '4x12', 'Libre'),
+(1, 'Extensión tríceps', '3x15', 'Polea'),
+-- Espalda
+(2, 'Dominadas', '4x8', 'Corporal'),
+(2, 'Remo con barra', '4x10', 'Libre'),
+(2, 'Jalón al pecho', '3x12', 'Máquina'),
+-- Pierna
+(3, 'Sentadilla', '5x5', 'Libre'),
+(3, 'Prensa', '4x10', 'Máquina'),
+(3, 'Zancadas', '3x12', 'Mancuernas'),
+-- Hombro
+(4, 'Press militar', '4x10', 'Libre'),
+(4, 'Elevaciones laterales', '4x15', 'Mancuernas'),
+(4, 'Pájaros', '3x15', 'Mancuernas'),
+-- Bíceps
+(5, 'Curl con barra', '4x10', 'Libre'),
+(5, 'Curl martillo', '3x12', 'Mancuernas'),
+(5, 'Curl concentrado', '3x15', 'Mancuerna'),
+-- Tríceps
+(6, 'Fondos en paralelas', '4xFallo', 'Corporal'),
+(6, 'Extensión en polea', '4x12', 'Polea'),
+(6, 'Press francés', '3x10', 'Barra Z'),
+-- Core
+(7, 'Plancha isométrica', '4x60s', 'Corporal'),
+(7, 'Crunches polea', '3x20', 'Polea'),
+(7, 'Elevación piernas', '3x15', 'Corporal'),
+-- Cardio
+(8, 'HIIT en cinta', '10x1min', 'N/A'),
+(8, 'Remadora', '15 min', 'N/A'),
+(8, 'Salto de cuerda', '5x3min', 'N/A'),
+-- Full Body
+(9, 'Peso muerto', '3x8', 'Libre'),
+(9, 'Crunch abdominal', '3x20', 'Corporal'),
+(9, 'Plancha', '3x60s', 'Corporal');

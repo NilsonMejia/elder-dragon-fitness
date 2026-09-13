@@ -468,68 +468,268 @@ const deletePlan = async (req, res) => {
 };
 
 const getReportesFinancieros = async (req, res) => {
-  const { desde, hasta } = req.query;
+  const { desde, hasta, tipo = 'ingresos' } = req.query;
   const values = [];
   const filters = [];
 
-  if (desde) {
-    values.push(desde);
-    filters.push(`p.fecha_pago::date >= $${values.length}`);
-  }
-
-  if (hasta) {
-    values.push(hasta);
-    filters.push(`p.fecha_pago::date <= $${values.length}`);
-  }
-
-  const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-
   try {
-    const [resumen, pagos] = await Promise.all([
-      pool.query(
+    // ----------------------------------------------------
+    // 1. REPORTE DE INGRESOS (PAGOS)
+    // ----------------------------------------------------
+    if (tipo === 'ingresos') {
+      if (desde) {
+        values.push(desde);
+        filters.push(`p.fecha_pago::date >= $${values.length}`);
+      }
+      if (hasta) {
+        values.push(hasta);
+        filters.push(`p.fecha_pago::date <= $${values.length}`);
+      }
+      const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
+      const [resumen, data] = await Promise.all([
+        pool.query(
+          `SELECT
+            COALESCE(SUM(p.monto), 0)::numeric AS total_ingresos,
+            COUNT(p.id_pago)::int AS cantidad_pagos,
+            COALESCE(AVG(p.monto), 0)::numeric AS ticket_promedio
+          FROM pagos p
+          ${where}`,
+          values
+        ),
+        pool.query(
+          `SELECT
+            p.id_pago AS id,
+            to_char(p.fecha_pago, 'YYYY-MM-DD') AS fecha,
+            c.nombre || ' ' || c.apellido AS cliente,
+            pl.nombre_plan AS plan,
+            p.metodo_pago,
+            rec.nombre || ' ' || rec.apellido AS atendido_por,
+            p.monto
+          FROM pagos p
+          INNER JOIN membresias m ON m.id_membresia = p.id_membresia
+          INNER JOIN usuarios c ON c.id_usuario = m.id_cliente
+          INNER JOIN usuarios rec ON rec.id_usuario = p.id_recepcionista
+          INNER JOIN planes pl ON pl.id_plan = m.id_plan
+          ${where}
+          ORDER BY p.fecha_pago DESC`,
+          values
+        )
+      ]);
+
+      return res.json({
+        tipo: 'ingresos',
+        kpis: [
+          { label: 'Total Ingresos', value: `$${Number(resumen.rows[0].total_ingresos).toFixed(2)}`, tone: 'blue' },
+          { label: 'Pagos Procesados', value: resumen.rows[0].cantidad_pagos, tone: 'green' },
+          { label: 'Ticket Promedio', value: `$${Number(resumen.rows[0].ticket_promedio).toFixed(2)}`, tone: 'purple' }
+        ],
+        columnas: ['ID', 'Fecha', 'Cliente', 'Plan', 'Método', 'Atendido Por', 'Monto'],
+        filas: data.rows
+      });
+    }
+
+    // ----------------------------------------------------
+    // 2. REPORTE DE CLIENTES MOROSOS
+    // ----------------------------------------------------
+    if (tipo === 'morosos') {
+      const { rows } = await pool.query(
         `SELECT
-          COALESCE(SUM(p.monto), 0)::numeric AS total_ingresos,
-          COUNT(p.id_pago)::int AS cantidad_pagos,
-          COALESCE(AVG(p.monto), 0)::numeric AS ticket_promedio
-        FROM pagos p
-        ${where}`,
-        values
-      ),
-      pool.query(
+          u.id_usuario AS id,
+          u.nombre || ' ' || u.apellido AS cliente,
+          u.email,
+          COALESCE(u.telefono, 'N/A') AS telefono,
+          pl.nombre_plan AS plan,
+          to_char(m.fecha_fin, 'YYYY-MM-DD') AS fecha_vencimiento,
+          u.estado
+        FROM usuarios u
+        INNER JOIN membresias m ON m.id_cliente = u.id_usuario
+        INNER JOIN planes pl ON pl.id_plan = m.id_plan
+        WHERE u.estado = 'Moroso' OR m.estado = 'Morosa' OR m.fecha_fin < CURRENT_DATE
+        ORDER BY m.fecha_fin ASC`
+      );
+
+      return res.json({
+        tipo: 'morosos',
+        kpis: [
+          { label: 'Total Morosos', value: rows.length, tone: 'red' },
+          { label: 'Membresías Vencidas', value: rows.length, tone: 'red' }
+        ],
+        columnas: ['ID', 'Cliente', 'Email', 'Teléfono', 'Plan', 'Vencimiento', 'Estado'],
+        filas: rows
+      });
+    }
+
+    // ----------------------------------------------------
+    // 3. REPORTE DE NUEVOS REGISTROS / CLIENTES
+    // ----------------------------------------------------
+    if (tipo === 'nuevos') {
+      if (desde) {
+        values.push(desde);
+        filters.push(`m.fecha_inicio::date >= $${values.length}`);
+      }
+      if (hasta) {
+        values.push(hasta);
+        filters.push(`m.fecha_inicio::date <= $${values.length}`);
+      }
+      const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+
+      const { rows } = await pool.query(
         `SELECT
-          p.id_pago, p.monto, p.fecha_pago, p.metodo_pago, p.num_factura_electronica,
-          c.nombre || ' ' || c.apellido AS cliente,
-          rec.nombre || ' ' || rec.apellido AS recepcionista,
-          pl.nombre_plan
-        FROM pagos p
-        INNER JOIN membresias m ON m.id_membresia = p.id_membresia
-        INNER JOIN usuarios c ON c.id_usuario = m.id_cliente
-        INNER JOIN usuarios rec ON rec.id_usuario = p.id_recepcionista
+          u.id_usuario AS id,
+          to_char(m.fecha_inicio, 'YYYY-MM-DD') AS fecha_alta,
+          u.nombre || ' ' || u.apellido AS cliente,
+          u.email,
+          pl.nombre_plan AS plan,
+          u.estado
+        FROM membresias m
+        INNER JOIN usuarios u ON u.id_usuario = m.id_cliente
         INNER JOIN planes pl ON pl.id_plan = m.id_plan
         ${where}
-        ORDER BY p.fecha_pago DESC`,
+        ORDER BY m.fecha_inicio DESC`,
         values
-      ),
-    ]);
+      );
 
-    return res.json({
-      resumen: {
-        total_ingresos: Number(resumen.rows[0].total_ingresos),
-        cantidad_pagos: resumen.rows[0].cantidad_pagos,
-        ticket_promedio: Number(resumen.rows[0].ticket_promedio),
-      },
-      pagos: pagos.rows,
-    });
+      return res.json({
+        tipo: 'nuevos',
+        kpis: [
+          { label: 'Nuevas Altas', value: rows.length, tone: 'green' }
+        ],
+        columnas: ['ID', 'Fecha Alta', 'Cliente', 'Email', 'Plan', 'Estado'],
+        filas: rows
+      });
+    }
+
   } catch (error) {
     console.error('Error generando reportes:', error);
     return res.status(500).json({ message: 'Error interno del servidor.' });
   }
 };
 
+
+// ==========================================
+// MÓDULO DE RUTINAS (CATÁLOGO)
+// ==========================================
+
+const getRutinas = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT 
+        r.id_rutina AS id, r.nombre, r.grupo, r.nivel, r.duracion, r.calorias, r.tipo_media AS "tipoMedia", r.media_url AS "mediaUrl",
+        COALESCE(
+          json_agg(
+            json_build_object('id', d.id_detalle, 'texto', d.texto, 'series', d.series, 'peso', d.peso)
+          ) FILTER (WHERE d.id_detalle IS NOT NULL), '[]'
+        ) AS detalles
+      FROM rutinas r
+      LEFT JOIN detalle_rutinas d ON r.id_rutina = d.id_rutina
+      GROUP BY r.id_rutina
+      ORDER BY r.id_rutina DESC`
+    );
+    return res.json(rows);
+  } catch (error) {
+    console.error('Error obteniendo rutinas:', error);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
+const createRutina = async (req, res) => {
+  const { nombre, grupo, nivel, duracion, calorias, tipoMedia, mediaUrl, detalles } = req.body;
+  const client = await pool.connect(); // Iniciamos transacción
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Insertamos la rutina base
+    const resRutina = await client.query(
+      `INSERT INTO rutinas (nombre, grupo, nivel, duracion, calorias, tipo_media, media_url) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id_rutina`,
+      [nombre, grupo, nivel, duracion, calorias, tipoMedia, mediaUrl]
+    );
+    const idRutina = resRutina.rows[0].id_rutina;
+
+    // 2. Insertamos los ejercicios (detalles)
+    if (detalles && detalles.length > 0) {
+      for (let det of detalles) {
+        await client.query(
+          `INSERT INTO detalle_rutinas (id_rutina, texto, series, peso) VALUES ($1, $2, $3, $4)`,
+          [idRutina, det.texto, det.series, det.peso]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    return res.status(201).json({ message: 'Rutina creada exitosamente' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error creando rutina:', error);
+    return res.status(500).json({ message: 'Error al crear la rutina.' });
+  } finally {
+    client.release();
+  }
+};
+
+const updateRutina = async (req, res) => {
+  const { id } = req.params;
+  const { nombre, grupo, nivel, duracion, calorias, tipoMedia, mediaUrl, detalles } = req.body;
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    // 1. Actualizamos la rutina base
+    await client.query(
+      `UPDATE rutinas 
+       SET nombre = $1, grupo = $2, nivel = $3, duracion = $4, calorias = $5, tipo_media = $6, media_url = $7
+       WHERE id_rutina = $8`,
+      [nombre, grupo, nivel, duracion, calorias, tipoMedia, mediaUrl, id]
+    );
+
+    // 2. Borramos los ejercicios viejos y reinsertamos los nuevos (Método más limpio)
+    await client.query(`DELETE FROM detalle_rutinas WHERE id_rutina = $1`, [id]);
+    
+    if (detalles && detalles.length > 0) {
+      for (let det of detalles) {
+        await client.query(
+          `INSERT INTO detalle_rutinas (id_rutina, texto, series, peso) VALUES ($1, $2, $3, $4)`,
+          [id, det.texto, det.series, det.peso]
+        );
+      }
+    }
+
+    await client.query('COMMIT');
+    return res.json({ message: 'Rutina actualizada exitosamente' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error actualizando rutina:', error);
+    return res.status(500).json({ message: 'Error al actualizar la rutina.' });
+  } finally {
+    client.release();
+  }
+};
+
+const deleteRutina = async (req, res) => {
+  try {
+    // Nota: Si configuraste "ON DELETE CASCADE" en tu tabla detalle_rutinas, esto borrará todo automáticamente.
+    const { rowCount } = await pool.query('DELETE FROM rutinas WHERE id_rutina = $1', [req.params.id]);
+    if (!rowCount) return res.status(404).json({ message: 'Rutina no encontrada.' });
+    
+    return res.status(204).send();
+  } catch (error) {
+    console.error('Error eliminando rutina:', error);
+    return res.status(500).json({ message: 'Error al eliminar la rutina.' });
+  }
+};
+
+
 module.exports = {
   getDashboardStats,
   getUsuarios,
   getUsuarioById,
+  getRutinas,
+  createRutina,
+  updateRutina,
+  deleteRutina,
   createUsuario,
   updateUsuario,
   deleteUsuario,

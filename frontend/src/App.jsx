@@ -11,6 +11,7 @@ import Planes from './views/admin/Planes';
 import Reportes from './views/admin/Reportes';
 import Configuracion from './views/admin/Configuracion';
 import Clientes from './views/recepcion/Clientes';
+import Rutinas from './views/admin/Rutinas';
 
 function App() {
   return (
@@ -31,6 +32,7 @@ function App() {
         <Route path="/planes" element={<Navigate to="/admin/planes" replace />} />
         <Route path="/reportes" element={<Navigate to="/admin/reportes" replace />} />
         <Route path="/configuracion" element={<Navigate to="/admin/configuracion" replace />} />
+        <Route path="/admin/rutinas" element={<Rutinas />} />
       </Routes>
     </Router>
   );
