@@ -306,7 +306,7 @@ const Login = () => {
               <div className="input-group">
                 <label htmlFor="password">Contrasena</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">#</span>
+                  <span className="input-icon">🔒</span>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
