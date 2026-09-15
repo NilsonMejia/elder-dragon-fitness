@@ -44,6 +44,21 @@ const EyeOffIcon = ({ size = 20, color = 'currentColor' }) => (
   </svg>
 );
 
+// NUEVOS ICONOS SVG PARA REEMPLAZAR @ Y 🔒
+const MailIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+    <polyline points="22,6 12,13 2,6"></polyline>
+  </svg>
+);
+
+const LockIcon = ({ size = 18, color = 'currentColor' }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+  </svg>
+);
+
 const Login = () => {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
@@ -237,7 +252,7 @@ const Login = () => {
               <div className="input-group">
                 <label htmlFor="newPassword">Nueva Contrasena</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">#</span>
+                  <span className="input-icon"><LockIcon size={18} /></span>
                   <input
                     id="newPassword"
                     type={showNewPassword ? 'text' : 'password'}
@@ -261,7 +276,7 @@ const Login = () => {
               <div className="input-group">
                 <label htmlFor="confirmPassword">Confirmar Contrasena</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">#</span>
+                  <span className="input-icon"><LockIcon size={18} /></span>
                   <input
                     id="confirmPassword"
                     type={showNewPassword ? 'text' : 'password'}
@@ -290,7 +305,7 @@ const Login = () => {
               <div className="input-group">
                 <label htmlFor="email">Correo Electronico</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">@</span>
+                  <span className="input-icon"><MailIcon size={18} /></span>
                   <input
                     id="email"
                     type="email"
@@ -306,7 +321,7 @@ const Login = () => {
               <div className="input-group">
                 <label htmlFor="password">Contrasena</label>
                 <div className="input-wrapper">
-                  <span className="input-icon">🔒</span>
+                  <span className="input-icon"><LockIcon size={18} /></span>
                   <input
                     id="password"
                     type={showPassword ? 'text' : 'password'}
