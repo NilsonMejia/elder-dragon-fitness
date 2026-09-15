@@ -8,7 +8,7 @@ const roleRedirects = {
   Administrador: '/admin/dashboard',
   Recepcionista: '/recepcion/clientes',
   Entrenador: '/admin/dashboard',
-  Cliente: '/',
+  Cliente: '/cliente/perfil',
 };
 
 const EyeIcon = ({ size = 20, color = 'currentColor' }) => (
