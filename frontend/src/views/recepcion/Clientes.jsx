@@ -45,13 +45,13 @@ const Clientes = () => {
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const storedUser = localStorage.getItem('usuario') || sessionStorage.getItem('usuario');
   
-  let userName = 'Recepción';
+  let userName = 'Marlon Jonathan'; // Fallback por defecto
   let userRole = 'Recepcionista';
   
   if (storedUser) {
     try {
       const parsedUser = JSON.parse(storedUser);
-      userName = parsedUser.nombre || 'Recepción';
+      userName = parsedUser.nombre || 'Marlon Jonathan';
       userRole = parsedUser.rol || parsedUser.nombre_rol || 'Recepcionista';
     } catch (e) {
       console.error('Error al leer el usuario:', e);
@@ -71,7 +71,6 @@ const Clientes = () => {
     return new Date(dateValue).toISOString().slice(0, 10);
   };
 
-  // Envolvemos la petición en useCallback para poder recargar la tabla al guardar
   const fetchClientes = useCallback(async () => {
     if (!token) {
       setError('Sesión no encontrada.');
@@ -89,7 +88,6 @@ const Clientes = () => {
         throw new Error(data.message || 'No se pudieron cargar los clientes.');
       }
 
-      // Blindaje de datos: Nos aseguramos de que sea un Array
       setClientes(Array.isArray(data) ? data : []);
     } catch (fetchError) {
       setError(fetchError.message);
@@ -103,7 +101,6 @@ const Clientes = () => {
     fetchClientes();
   }, [fetchClientes]);
 
-  // Manejar el envío del formulario a la Base de Datos
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -124,7 +121,6 @@ const Clientes = () => {
         throw new Error(result.message || 'Error al guardar el cliente en la base de datos.');
       }
 
-      // Éxito: Cerramos el modal, limpiamos el formulario y recargamos la tabla
       setIsModalOpen(false);
       setFormData({ nombre: '', apellido: '', email: '', telefono: '' });
       fetchClientes();
@@ -137,7 +133,6 @@ const Clientes = () => {
     }
   };
 
-  // Filtrado blindado
   const clientesFiltrados = useMemo(() => {
     const texto = busqueda?.trim().toLowerCase() || '';
     if (!Array.isArray(clientes)) return [];
@@ -177,36 +172,45 @@ const Clientes = () => {
         </nav>
 
         {/* ==========================================
-            BLOQUE DE PERFIL INFERIOR
+            BLOQUE DE PERFIL INFERIOR (COMPACTO Y ELEVADO)
             ========================================== */}
-        <div style={{ marginTop: 'auto', paddingTop: '20px', display: 'flex', flexDirection: 'column', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ 
+          marginTop: 'auto', 
+          marginBottom: '80vh', /* <-- Eleva el bloque bastante del fondo */
+          paddingTop: '15px', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          alignItems: 'center', 
+          borderTop: '1px solid rgba(255,255,255,0.05)' 
+        }}>
           
           <div style={{ 
-            width: '56px', height: '56px', borderRadius: '16px', 
+            width: '50px', height: '50px', borderRadius: '14px', 
             background: 'linear-gradient(135deg, #51ffaa, #00d4ff)', 
-            color: '#05080c', fontSize: '1.6rem', fontWeight: '900', 
+            color: '#05080c', fontSize: '1.4rem', fontWeight: '900', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            marginBottom: '10px', boxShadow: '0 8px 20px rgba(0, 212, 255, 0.2)' 
+            marginBottom: '4px', /* <-- Espacio reducido */
+            boxShadow: '0 8px 15px rgba(0, 212, 255, 0.2)' 
           }}>
             {userInitial}
           </div>
           
-          <p style={{ fontSize: '1.05rem', fontWeight: '800', color: '#fff', margin: '0 0 4px 0', textAlign: 'center', letterSpacing: '0.5px' }}>
+          <p style={{ fontSize: '1rem', fontWeight: '800', color: '#fff', margin: '0', textAlign: 'center', letterSpacing: '0.5px' }}>
             {userName}
           </p>
-          <p style={{ fontSize: '0.85rem', color: '#8e9ba8', margin: '0 0 20px 0', textAlign: 'center' }}>
+          <p style={{ fontSize: '0.8rem', color: '#8e9ba8', margin: '0 0 12px 0', /* <-- Espacio reducido */ textAlign: 'center' }}>
             {userRole}
           </p>
 
           <button 
             onClick={handleLogout} 
             style={{ 
-              width: '100%', padding: '12px', 
+              width: '100%', padding: '10px', /* <-- Botón más compacto */
               background: 'rgba(255, 77, 77, 0.05)', 
               border: '1px solid rgba(255, 77, 77, 0.3)', 
-              color: '#ff6b6b', fontWeight: '700', borderRadius: '12px', 
+              color: '#ff6b6b', fontWeight: '700', borderRadius: '10px', 
               cursor: 'pointer', display: 'flex', alignItems: 'center', 
-              justifyContent: 'center', gap: '10px', transition: 'all 0.3s ease' 
+              justifyContent: 'center', gap: '8px', transition: 'all 0.3s ease' 
             }}
             onMouseEnter={(e) => { 
               e.currentTarget.style.background = 'rgba(255, 77, 77, 0.15)'; 
