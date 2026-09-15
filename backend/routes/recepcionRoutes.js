@@ -8,6 +8,7 @@ const {
   deleteCliente,
   registrarPago,
   getPagos,
+  getPlanes,
 } = require('../controllers/recepcionController');
 const { authenticateToken, authorizeRoles } = require('../middleware/authMiddleware');
 
@@ -24,5 +25,6 @@ router.delete('/clientes/:id', deleteCliente);
 
 router.get('/pagos', getPagos);
 router.post('/pagos', registrarPago);
+router.get('/planes', getPlanes);
 
 module.exports = router;

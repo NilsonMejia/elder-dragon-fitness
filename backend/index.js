@@ -6,6 +6,7 @@ const authRoutes = require('./routes/authRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const recepcionRoutes = require('./routes/recepcionRoutes');
 const deportivoRoutes = require('./routes/deportivoRoutes');
+const clienteRoutes = require('./routes/clienteRoutes');
 
 // Inicializamos la aplicación
 const app = express();
@@ -19,6 +20,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/recepcion', recepcionRoutes);
 app.use('/api/deportivo', deportivoRoutes);
+app.use('/api/cliente', clienteRoutes);
 
 app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', service: 'Elder Dragon Fitness API' });

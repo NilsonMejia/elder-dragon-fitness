@@ -337,6 +337,19 @@ const getPagos = async (req, res) => {
   }
 };
 
+const getPlanes = async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT id_plan, nombre_plan, precio, duracion_dias FROM planes ORDER BY precio ASC'
+    );
+
+    return res.json(rows);
+  } catch (error) {
+    console.error('Error listando planes para recepcion:', error);
+    return res.status(500).json({ message: 'Error interno del servidor.' });
+  }
+};
+
 module.exports = {
   getClientes,
   getClienteById,
@@ -346,4 +359,5 @@ module.exports = {
   deleteCliente,
   registrarPago,
   getPagos,
+  getPlanes,
 };
