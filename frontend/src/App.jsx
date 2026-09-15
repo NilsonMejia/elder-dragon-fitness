@@ -17,6 +17,10 @@ import Rutinas from './views/admin/Rutinas';
 import Clientes from './views/recepcion/Clientes';
 import Pagos from './views/recepcion/Pagos';
 
+// Vistas de Cliente (NUEVAS)
+import MiPerfil from './views/cliente/MiPerfil';
+import MiRutina from './views/cliente/MiRutina';
+
 function App() {
   return (
     <Router>
@@ -34,13 +38,16 @@ function App() {
         <Route path="/admin/configuracion" element={<Configuracion />} />
         <Route path="/admin/rutinas" element={<Rutinas />} />
 
-        {/* RECEPCIÓN (Aquí está la corrección exacta que el navegador pedía) */}
+        {/* RECEPCIÓN */}
         <Route path="/recepcion/clientes" element={<Clientes />} />
         <Route path="/recepcion/pagos" element={<Pagos />} />
 
+        {/* CLIENTE (NUEVAS RUTAS) */}
+        <Route path="/cliente/perfil" element={<MiPerfil />} />
+        <Route path="/cliente/rutina" element={<MiRutina />} />
+
         {/* REDIRECCIONES CORTAS */}
         <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/clientes" element={<Navigate to="/recepcion/clientes" replace />} />
       </Routes>
     </Router>
   );

@@ -1,0 +1,49 @@
+@import url('https://fonts.googleapis.com/css2?family=Great+Vibes&family=Montserrat:wght@400;500;600;700;800;900&display=swap');
+
+.cliente-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 0%, #0a1a12 0%, #050608 45%);
+  color: #f5f7fb;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.cliente-sidebar {
+  background: #0a0f15;
+  border-right: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cliente-content {
+  padding: 40px;
+  overflow-y: auto;
+}
+
+.cliente-panel {
+  background: #10161e;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 30px;
+}
+
+.status-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(0, 255, 136, 0.1), transparent);
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  padding: 20px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+}
+
+.status-card h3 { color: #00ff88; margin-bottom: 5px; }
+
+/* Tabla de ejercicios y pagos */
+.cliente-table { width: 100%; border-collapse: collapse; text-align: left; }
+.cliente-table th { padding: 16px; color: #8e9ba8; font-size: 0.85rem; text-transform: uppercase; border-bottom: 1px solid rgba(255,255,255,0.07); }
+.cliente-table td { padding: 16px; border-bottom: 1px solid rgba(255,255,255,0.03); }
