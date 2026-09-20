@@ -1,2 +1,6 @@
 node_modules/
 .env
+backend/backups/
+frontend/lint-results.json
+frontend/dist/
+.reports/

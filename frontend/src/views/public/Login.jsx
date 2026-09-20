@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../css/Login.css';
 
@@ -7,7 +7,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 const roleRedirects = {
   Administrador: '/admin/dashboard',
   Recepcionista: '/recepcion/clientes',
-  Entrenador: '/admin/dashboard',
+  Entrenador: '/entrenador',
   Cliente: '/cliente/perfil',
 };
 
@@ -76,9 +76,6 @@ const Login = () => {
   useEffect(() => {
     sessionStorage.clear();
     localStorage.clear();
-    setEmail('');
-    setPassword('');
-    setPendingCredentials({ email: '', tempPassword: '' });
   }, []);
 
   const saveSessionAndRedirect = (data) => {
@@ -351,9 +348,7 @@ const Login = () => {
                   />
                   <span>Recordar sesion</span>
                 </label>
-                <a href="#recuperar" className="forgot-password">
-                  ¿Olvidaste tu contrasena?
-                </a>
+                <span className="forgot-password">Para recuperar tu acceso, contacta al administrador.</span>
               </div>
 
               {error && <p className="login-error">{error}</p>}

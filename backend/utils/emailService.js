@@ -1,6 +1,5 @@
 const nodemailer = require('nodemailer');
-
-const GMAIL_USER = process.env.GMAIL_USER || 'nilmejia.ascencio@gmail.com';
+require('../config/env');
 
 const escapeHtml = (value) => {
   return String(value)
@@ -11,22 +10,52 @@ const escapeHtml = (value) => {
     .replace(/'/g, '&#39;');
 };
 
-const hasSmtpConfig = () => {
-  return Boolean(process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS);
-};
-
 const createTransporter = () => {
-  if (!hasSmtpConfig()) {
-    return null;
+  const missing = ['GMAIL_USER', 'GMAIL_APP_PASSWORD', 'SMTP_FROM']
+    .filter(key => !process.env[key]?.trim());
+  if (missing.length) {
+    const error = new Error(`Falta configurar ${missing.join(', ')} en backend/.env.`);
+    error.code = 'EMAIL_CONFIG';
+    throw error;
   }
 
   return nodemailer.createTransport({
     service: 'gmail',
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 20000,
     auth: {
-      user: GMAIL_USER,
-      pass: process.env.GMAIL_APP_PASSWORD || process.env.SMTP_PASS,
+      user: process.env.GMAIL_USER.trim(),
+      pass: process.env.GMAIL_APP_PASSWORD.replace(/\s/g, ''),
     },
   });
+};
+
+const emailFailure = (error) => {
+  if (error.code === 'EMAIL_CONFIG') return { code: error.code, reason: error.message };
+  if (error.code === 'EAUTH' || error.responseCode === 535) {
+    return { code: 'EMAIL_AUTH', reason: 'Gmail rechazó las credenciales. Revisa GMAIL_USER y GMAIL_APP_PASSWORD en backend/.env.' };
+  }
+  if (['ECONNECTION', 'ECONNREFUSED', 'ECONNRESET', 'ETIMEDOUT', 'ETIMEOUT', 'EDNS', 'ENOTFOUND', 'ESOCKET'].includes(error.code)) {
+    return { code: 'EMAIL_CONNECTION', reason: 'No se pudo completar la conexión con Gmail. Revisa la conexión de red y vuelve a intentarlo.' };
+  }
+  if (error.code === 'EENVELOPE') {
+    return { code: 'EMAIL_REJECTED', reason: 'Gmail rechazó el remitente o destinatario. Revisa el correo del usuario y SMTP_FROM en backend/.env.' };
+  }
+  return { code: 'EMAIL_SEND', reason: 'Gmail no confirmó el envío del correo. Entrega la contraseña temporal al usuario.' };
+};
+
+const verifyEmailConnection = async () => {
+  let transporter;
+  try {
+    transporter = createTransporter();
+    await transporter.verify();
+    return { ready: true };
+  } catch (error) {
+    return { ready: false, ...emailFailure(error) };
+  } finally {
+    transporter?.close();
+  }
 };
 
 const buildTemporaryPasswordEmailHtml = ({ nombre, to, temporaryPassword }) => {
@@ -92,28 +121,29 @@ const buildTemporaryPasswordEmailHtml = ({ nombre, to, temporaryPassword }) => {
 };
 
 const sendTemporaryPasswordEmail = async ({ to, nombre, temporaryPassword }) => {
-  const transporter = createTransporter();
+  let transporter;
+  try {
+    transporter = createTransporter();
+    const result = await transporter.sendMail({
+      from: process.env.SMTP_FROM.trim(),
+      to,
+      subject: 'Acceso a Elder Dragon Fitness',
+      text: `Hola ${nombre},\n\nSe creo tu usuario en Elder Dragon Fitness.\n\nCorreo: ${to}\nContrasena temporal: ${temporaryPassword}\n\nPor seguridad, deberas cambiar esta contrasena durante tu primer inicio de sesion.\n\nElder Dragon Fitness`,
+      html: buildTemporaryPasswordEmailHtml({ nombre, to, temporaryPassword }),
+    });
 
-  if (!transporter) {
-    return {
-      sent: false,
-      reason: 'SMTP no configurado',
-    };
+    if (!result.accepted?.length) {
+      return { sent: false, code: 'EMAIL_REJECTED', reason: 'Gmail no aceptó el destinatario. Revisa el correo del usuario.' };
+    }
+    return { sent: true };
+  } catch (error) {
+    return { sent: false, ...emailFailure(error) };
+  } finally {
+    transporter?.close();
   }
-
-  await transporter.sendMail({
-    from: process.env.SMTP_FROM || `"Elder Dragon Fitness" <${GMAIL_USER}>`,
-    to,
-    subject: 'Acceso a Elder Dragon Fitness',
-    text: `Hola ${nombre},\n\nSe creo tu usuario en Elder Dragon Fitness.\n\nCorreo: ${to}\nContrasena temporal: ${temporaryPassword}\n\nPor seguridad, deberas cambiar esta contrasena durante tu primer inicio de sesion.\n\nElder Dragon Fitness`,
-    html: buildTemporaryPasswordEmailHtml({ nombre, to, temporaryPassword }),
-  });
-
-  return {
-    sent: true,
-  };
 };
 
 module.exports = {
   sendTemporaryPasswordEmail,
+  verifyEmailConnection,
 };

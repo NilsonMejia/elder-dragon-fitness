@@ -1,6 +1,7 @@
-import React, { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../../css/Recepcion.css';
+import Alerts from '../../components/Alerts';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -28,6 +29,7 @@ const Clientes = () => {
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [credential,setCredential]=useState('');
 
   // Estados para el Modal de Nuevo Cliente
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -98,16 +100,18 @@ const Clientes = () => {
   }, [token]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchClientes();
   }, [fetchClientes]);
 
+  const remove=async(cliente)=>{if(!window.confirm('¿Eliminar a '+cliente.nombre+'? Si tiene historial, cambia su estado a Inactivo.'))return;try{const r=await fetch(API_URL+'/recepcion/clientes/'+cliente.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error((await r.json()).message);await fetchClientes();}catch(e){setError(e.message);}};
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_URL}/recepcion/clientes`, {
-        method: 'POST',
+      const response = await fetch(`${API_URL}/recepcion/clientes${formData.id_usuario ? '/'+formData.id_usuario : ''}`, {
+        method: formData.id_usuario ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -124,7 +128,7 @@ const Clientes = () => {
       setIsModalOpen(false);
       setFormData({ nombre: '', apellido: '', email: '', telefono: '' });
       fetchClientes();
-      alert('¡Cliente registrado exitosamente!');
+      setCredential(result.temporaryPassword ? `${result.message} Contraseña temporal para ${formData.email}: ${result.temporaryPassword}` : result.message || 'Cliente guardado.');
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -227,7 +231,7 @@ const Clientes = () => {
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="recepcion-content">
+      <main className="recepcion-content"><Alerts reception/>{credential&&<div className="panel-recep" role="status"><p>{credential}</p><button onClick={()=>setCredential('')}>Ocultar</button></div>}
         <div className="topbar-recep">
           <div className="search-box">
             <span className="search-icon">🔍</span>
@@ -245,7 +249,7 @@ const Clientes = () => {
             <h1>Directorio de Clientes</h1>
             <p>Gestiona expedientes digitales y verifica el estado de las membresías.</p>
           </div>
-          <button className="btn-recep-primary" onClick={() => setIsModalOpen(true)}>
+          <button className="btn-recep-primary" onClick={() => {setFormData({nombre:'',apellido:'',email:'',telefono:'',estado:'Activo'});setIsModalOpen(true);}}>
             + Nuevo Cliente
           </button>
         </header>
@@ -259,18 +263,18 @@ const Clientes = () => {
                 <th>Teléfono</th>
                 <th>Plan Actual</th>
                 <th>Próximo Corte</th>
-                <th>Estado</th>
+                <th>Estado</th><th>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>Cargando clientes...</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Cargando clientes...</td>
                 </tr>
               )}
               {error && (
                 <tr>
-                  <td colSpan="6" style={{ color: '#ff4d4d', textAlign: 'center', padding: '20px' }}>{error}</td>
+                  <td colSpan="7" style={{ color: '#ff4d4d', textAlign: 'center', padding: '20px' }}>{error}</td>
                 </tr>
               )}
               {!loading && !error && clientesFiltrados.map(cliente => (
@@ -284,12 +288,12 @@ const Clientes = () => {
                     <span className={`badge-estado ${(cliente.estado || '').toLowerCase()}`}>
                       {(cliente.estado || 'Sin estado').toUpperCase()}
                     </span>
-                  </td>
+                  </td><td><button className="btn-edit" onClick={()=>{setFormData({...cliente,telefono:cliente.telefono || ''});setIsModalOpen(true);}}>Editar</button><button className="btn-edit" onClick={()=>remove(cliente)}>Eliminar</button></td>
                 </tr>
               ))}
               {!loading && !error && clientesFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>No se encontraron clientes.</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No se encontraron clientes.</td>
                 </tr>
               )}
             </tbody>
@@ -306,41 +310,41 @@ const Clientes = () => {
           display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
         }}>
           <div className="panel-recep" style={{ width: '100%', maxWidth: '500px', padding: '30px', background: '#0b1626' }}>
-            <h2 style={{ marginBottom: '20px', color: '#fff' }}>✨ Registrar Nuevo Cliente</h2>
+            <h2 style={{ marginBottom: '20px', color: '#fff' }}>{formData.id_usuario?'Editar cliente':'Registrar nuevo cliente'}</h2>
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }}>Nombre</label>
+                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-nombre">Nombre</label>
                 <input 
                   type="text" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  value={formData.nombre} 
+                  id="client-nombre" value={formData.nombre}
                   onChange={(e) => setFormData({...formData, nombre: e.target.value})} 
                 />
               </div>
               
               <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }}>Apellido</label>
+                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-apellido">Apellido</label>
                 <input 
                   type="text" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  value={formData.apellido} 
+                  id="client-apellido" value={formData.apellido}
                   onChange={(e) => setFormData({...formData, apellido: e.target.value})} 
                 />
               </div>
 
               <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }}>Correo Electrónico</label>
+                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-email">Correo Electrónico</label>
                 <input 
                   type="email" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  value={formData.email} 
+                  id="client-email" value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})} 
                 />
               </div>
 
               <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }}>Teléfono</label>
+                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-telefono">Teléfono</label>
                 <input 
                   type="text" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  value={formData.telefono} 
+                  id="client-telefono" value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})} 
                 />
               </div>
@@ -349,7 +353,7 @@ const Clientes = () => {
                 <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid #1f2d3d', color: '#8e9ba8', borderRadius: '6px', cursor: 'pointer' }}>
                   Cancelar
                 </button>
-                <button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: '10px', background: '#38d996', border: 'none', color: '#07111f', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>
+                <label>Estado<select value={formData.estado||'Activo'} onChange={e=>setFormData({...formData,estado:e.target.value})}><option>Activo</option><option>Inactivo</option><option>Moroso</option></select></label><button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: '10px', background: '#38d996', border: 'none', color: '#07111f', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>
                   {isSubmitting ? 'Guardando...' : 'Guardar Cliente'}
                 </button>
               </div>

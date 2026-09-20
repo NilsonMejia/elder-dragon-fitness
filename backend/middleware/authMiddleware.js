@@ -1,6 +1,7 @@
+const pool = require('../config/db');
 const jwt = require('jsonwebtoken');
 
-const authenticateToken = (req, res, next) => {
+const authenticateToken = async (req, res, next) => {
   const authHeader = req.headers.authorization;
   const token = authHeader && authHeader.split(' ')[0] === 'Bearer'
     ? authHeader.split(' ')[1]
@@ -17,10 +18,18 @@ const authenticateToken = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = decoded;
+    const result = await pool.query(`SELECT u.estado, u.debe_cambiar_password, u.token_version, r.nombre_rol AS rol FROM usuarios u JOIN roles r ON r.id_rol=u.id_rol WHERE u.id_usuario=$1`, [decoded.userId]);
+    const user = result.rows[0];
+    if (!user || user.estado==='Inactivo' || user.debe_cambiar_password || user.token_version !== (decoded.version || 0)) return res.status(401).json({message:'Sesión revocada. Inicia sesión de nuevo.'});
+    if (user.rol==='Cliente') {
+      const settings = await pool.query('SELECT datos FROM configuracion WHERE id=1');
+      if(settings.rows[0]?.datos.modoMantenimiento) return res.status(503).json({message:'Sistema en mantenimiento.'});
+    }
+    req.user = {...decoded, rol:user.rol};
     return next();
   } catch (error) {
-    return res.status(403).json({ message: 'Token invalido o expirado.' });
+    if (error.name === 'JsonWebTokenError' || error.name === 'TokenExpiredError') return res.status(401).json({ message: 'Token inválido o expirado.' });
+    return next(error);
   }
 };
 

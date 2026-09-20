@@ -9,4 +9,7 @@ router.use(authenticateToken, authorizeRoles('Cliente'));
 router.get('/perfil', getMiPerfil);
 router.get('/rutina', getMiRutina);
 
-module.exports = router;
+const assignments=require('../controllers/assignmentController');
+router.get('/asignaciones/:id/seguimiento',assignments.history);
+router.post('/asignaciones/:id/seguimiento',assignments.progress);
+module.exports=router;

@@ -6,4 +6,5 @@ const router = express.Router();
 router.post('/login', login);
 router.post('/cambiar-password-inicial', cambiarPasswordInicial);
 
-module.exports = router;
+router.get('/me',require('../middleware/authMiddleware').authenticateToken,(req,res)=>res.json({rol:req.user.rol,id:req.user.userId}));
+module.exports=router;

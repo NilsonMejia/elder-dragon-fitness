@@ -1,4 +1,5 @@
-import React from 'react';
+import ProtectedRoute from './components/ProtectedRoute';
+import Asignaciones from './views/entrenador/Asignaciones';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 
 // Vistas Públicas
@@ -29,7 +30,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
-        {/* ADMINISTRADOR */}
+        <Route element={<ProtectedRoute roles={['Administrador']} />}>
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<Dashboard />} />
         <Route path="/admin/usuarios" element={<Usuarios />} />
@@ -38,15 +39,20 @@ function App() {
         <Route path="/admin/configuracion" element={<Configuracion />} />
         <Route path="/admin/rutinas" element={<Rutinas />} />
 
-        {/* RECEPCIÓN */}
+        <Route path="/admin/asignaciones" element={<Asignaciones />} /></Route>
+<Route element={<ProtectedRoute roles={['Administrador','Entrenador']} />}>
+<Route path="/entrenador" element={<Asignaciones />} />
+<Route path="/entrenador/catalogo" element={<Rutinas />} />
+</Route>
+<Route element={<ProtectedRoute roles={['Administrador','Recepcionista']} />}>
         <Route path="/recepcion/clientes" element={<Clientes />} />
         <Route path="/recepcion/pagos" element={<Pagos />} />
 
-        {/* CLIENTE (NUEVAS RUTAS) */}
+        </Route><Route element={<ProtectedRoute roles={['Cliente']} />}>
         <Route path="/cliente/perfil" element={<MiPerfil />} />
         <Route path="/cliente/rutina" element={<MiRutina />} />
 
-        {/* REDIRECCIONES CORTAS */}
+        </Route>
         <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </Router>

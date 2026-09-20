@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../../css/Recepcion.css';
 
@@ -33,6 +33,8 @@ const Pagos = () => {
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [mensaje, setMensaje] = useState('');
+  const [preview,setPreview]=useState(null);
+  const paymentOperation=useRef(null);
 
   // ==========================================
   // VALIDACIÓN DE USUARIO Y SESIÓN
@@ -122,13 +124,11 @@ const Pagos = () => {
     return planes.find((plan) => String(plan.id_plan) === String(idPlan)) || null;
   }, [idPlan, planes]);
 
-  const fechaCorteCalculada = useMemo(() => {
-    if (!planSeleccionado) return 'Se calculará automáticamente...';
-
-    const fecha = new Date();
-    fecha.setDate(fecha.getDate() + Number(planSeleccionado.duracion_dias || 0));
-    return fecha.toISOString().slice(0, 10);
-  }, [planSeleccionado]);
+  const customerId=clienteSeleccionado?.id_usuario;
+  const planId=planSeleccionado?.id_plan;
+  useEffect(()=>{let active=true;if(customerId&&planId)fetch(API_URL+'/recepcion/renovacion?id_cliente='+customerId+'&id_plan='+planId,{headers:{Authorization:'Bearer '+token}}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.message);return d;}).then(d=>{if(active)setPreview({...d,customerId,planId});}).catch(e=>{if(active)setMensaje(e.message);});return()=>{active=false;};},[customerId,planId,token]);
+  const validPreview=preview&&preview.customerId===customerId&&preview.planId===planId;
+  const fechaCorteCalculada=validPreview ? preview.fecha_fin+' (inicia '+preview.fecha_inicio+')' : 'Selecciona cliente y plan';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -139,13 +139,17 @@ const Pagos = () => {
       return;
     }
 
+    if(isSubmitting)return;
     setIsSubmitting(true);
+    const fingerprint=JSON.stringify([clienteSeleccionado.id_usuario,planSeleccionado.id_plan,planSeleccionado.precio,metodoPago]);
+    if(paymentOperation.current?.fingerprint!==fingerprint)paymentOperation.current={fingerprint,key:crypto.randomUUID()};
 
     try {
       const response = await fetch(`${API_URL}/recepcion/pagos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({
+          idempotency_key: paymentOperation.current.key,
           id_cliente: clienteSeleccionado.id_usuario,
           id_plan: planSeleccionado.id_plan,
           monto: Number(planSeleccionado.precio),
@@ -156,7 +160,8 @@ const Pagos = () => {
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'No se pudo procesar el pago.');
 
-      setMensaje('¡Pago procesado y registrado en la base de datos!');
+      setMensaje(`Pago registrado. Nueva vigencia: ${data.membresia.fecha_inicio.slice(0,10)} a ${data.membresia.fecha_fin.slice(0,10)}. Recibo: ${data.pago.num_factura_electronica}`);
+      paymentOperation.current=null;
       setClienteBusqueda('');
       setIdPlan('');
       setMetodoPago('efectivo');
@@ -308,7 +313,7 @@ const Pagos = () => {
                 <label>Método de Pago</label>
                 <select required value={metodoPago} onChange={(e) => setMetodoPago(e.target.value)} style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}>
                   <option value="efectivo">Efectivo</option>
-                  <option value="tarjeta">Tarjeta de Crédito / Débito</option>
+                  <option value="transferencia">Transferencia</option><option value="tarjeta">Tarjeta de Crédito / Débito</option>
                 </select>
               </div>
 
@@ -319,8 +324,8 @@ const Pagos = () => {
             </div>
             
             <div style={{ marginTop: '30px' }}>
-              <button type="submit" className="btn-recep-primary" disabled={isSubmitting || loading}>
-                {isSubmitting ? 'Procesando en BD...' : '✓ Procesar Pago Oficial'}
+              <button type="submit" className="btn-recep-primary" disabled={isSubmitting || loading || !validPreview}>
+                {isSubmitting ? 'Procesando en BD...' : 'Registrar pago'}
               </button>
             </div>
 

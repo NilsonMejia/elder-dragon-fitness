@@ -9,6 +9,7 @@ const signToken = (usuario) => {
     {
       userId: usuario.id_usuario,
       rol: usuario.rol,
+      version: usuario.token_version || 0,
     },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
@@ -32,6 +33,7 @@ const findUserByEmail = async (email) => {
       u.apellido,
       u.email,
       u.password_hash,
+      u.token_version,
       u.estado,
       COALESCE(u.debe_cambiar_password, false) AS debe_cambiar_password,
       r.nombre_rol AS rol
@@ -46,10 +48,6 @@ const findUserByEmail = async (email) => {
 };
 
 const validatePassword = async (usuario, passwordIngresada) => {
-  if (usuario.password_hash === 'hash_123' && passwordIngresada === '123456') {
-    return true;
-  }
-
   return bcrypt.compare(passwordIngresada, usuario.password_hash);
 };
 
@@ -69,7 +67,7 @@ const login = async (req, res) => {
   const userEmail = email || correo;
   const passwordIngresada = password || contrasena;
 
-  if (!userEmail || !passwordIngresada) {
+  if (typeof userEmail !== 'string' || typeof passwordIngresada !== 'string' || !userEmail || !passwordIngresada) {
     return res.status(400).json({
       message: 'El email y la contrasena son obligatorios.',
     });
@@ -82,7 +80,7 @@ const login = async (req, res) => {
   try {
     const usuario = await findUserByEmail(userEmail);
 
-    if (!usuario) {
+    if (!usuario || usuario.estado === 'Inactivo') {
       return res.status(401).json({ message: 'Credenciales invalidas.' });
     }
 
@@ -135,7 +133,7 @@ const cambiarPasswordInicial = async (req, res) => {
     });
   }
 
-  if (finalPassword.length < 8) {
+  if (typeof finalPassword !== 'string' || finalPassword.length < 8 || Buffer.byteLength(finalPassword) > 72) {
     return res.status(400).json({
       message: 'La nueva contrasena debe tener al menos 8 caracteres.',
     });
@@ -148,7 +146,7 @@ const cambiarPasswordInicial = async (req, res) => {
   try {
     const usuario = await findUserByEmail(userEmail);
 
-    if (!usuario) {
+    if (!usuario || usuario.estado === 'Inactivo') {
       return res.status(401).json({ message: 'Credenciales invalidas.' });
     }
 

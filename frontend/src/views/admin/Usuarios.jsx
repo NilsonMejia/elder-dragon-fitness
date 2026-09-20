@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageShell } from './Dashboard';
 import '../../css/admin.css';
@@ -13,6 +13,7 @@ const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [credential,setCredential]=useState('');
 
   // Estados para el Modal de Crear/Editar
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -57,6 +58,7 @@ const Usuarios = () => {
       navigate('/login');
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchUsuarios();
   }, [token, navigate, fetchUsuarios]);
 
@@ -142,7 +144,7 @@ const Usuarios = () => {
       fetchUsuarios();
       
       if (modalMode === 'crear') {
-        alert('Usuario creado exitosamente. Se ha generado una contraseña temporal.');
+        setCredential(result.temporaryPassword ? `${result.message} Contraseña temporal para ${formData.email}: ${result.temporaryPassword}` : result.message);
       }
     } catch (err) {
       console.error(err);
@@ -152,8 +154,13 @@ const Usuarios = () => {
     }
   };
 
+  const handleDelete=async(user)=>{
+    if(!window.confirm('¿Eliminar a '+user.nombre+'? Si tiene historial, suspende su cuenta en Editar.'))return;
+    try{const response=await fetch(API_URL+'/admin/usuarios/'+user.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!response.ok)throw new Error((await response.json()).message);await fetchUsuarios();}catch(e){setError(e.message);}
+  };
   return (
     <AdminPageShell>
+      {credential&&<div className="panel" role="status"><p>{credential}</p><button onClick={()=>setCredential('')}>Ocultar</button></div>}
       <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '30px' }}>
         <div>
           <h1>Gestión de Usuarios</h1>
@@ -207,7 +214,7 @@ const Usuarios = () => {
                       </span>
                     </td>
                     <td>
-                      <button className="btn-edit" onClick={() => openEditModal(usuario)}>✏️ Editar</button>
+                      <button className="btn-edit" onClick={() => openEditModal(usuario)}>✏️ Editar</button> <button className="btn-edit" onClick={()=>handleDelete(usuario)}>Eliminar</button>
                     </td>
                   </tr>
                 ))
@@ -238,47 +245,47 @@ const Usuarios = () => {
             
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
               <div className="input-group">
-                <label>Nombre</label>
+                <label htmlFor="user-nombre">Nombre</label>
                 <input 
                   type="text" className="admin-input" required 
-                  value={formData.nombre} 
+                  id="user-nombre" value={formData.nombre}
                   onChange={(e) => setFormData({...formData, nombre: e.target.value})} 
                 />
               </div>
               
               <div className="input-group">
-                <label>Apellido</label>
+                <label htmlFor="user-apellido">Apellido</label>
                 <input 
                   type="text" className="admin-input" required 
-                  value={formData.apellido} 
+                  id="user-apellido" value={formData.apellido}
                   onChange={(e) => setFormData({...formData, apellido: e.target.value})} 
                 />
               </div>
 
               <div className="input-group">
-                <label>Correo Electrónico</label>
+                <label htmlFor="user-email">Correo Electrónico</label>
                 <input 
                   type="email" className="admin-input" required 
-                  value={formData.email} 
+                  id="user-email" value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})} 
                 />
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div className="input-group">
-                  <label>Teléfono</label>
+                  <label htmlFor="user-telefono">Teléfono</label>
                   <input 
                     type="text" className="admin-input" 
-                    value={formData.telefono} 
+                    id="user-telefono" value={formData.telefono}
                     onChange={(e) => setFormData({...formData, telefono: e.target.value})} 
                   />
                 </div>
 
                 <div className="input-group">
-                  <label>Rol</label>
+                  <label htmlFor="user-rol">Rol</label>
                   <select 
                     className="admin-input" 
-                    value={formData.rol} 
+                    id="user-rol" value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value})}
                   >
                     <option value="Cliente">Cliente</option>

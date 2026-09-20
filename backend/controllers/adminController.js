@@ -3,11 +3,13 @@ const pool = require('../config/db');
 const { sendTemporaryPasswordEmail } = require('../utils/emailService');
 const { generateTemporaryPassword } = require('../utils/passwordUtils');
 
+const { normalizeDetails } = require('../services/routineService');
 const SALT_ROUNDS = 10;
 
 const resolveRoleId = async (client, { id_rol, rol }) => {
   if (id_rol) {
-    return id_rol;
+    const result=await client.query('SELECT id_rol FROM roles WHERE id_rol=$1',[id_rol]);
+    return result.rows[0]?.id_rol || null;
   }
 
   if (!rol) {
@@ -35,8 +37,8 @@ const getDashboardStats = async (req, res) => {
       // ================= NUEVAS CONSULTAS =================
       nuevosMesDB,
       cancelacionesDB,
-      asistenciaProxyDB,
-      ocupacionDB
+      pagosHoyDB,
+      clientesSinPlanDB
     ] = await Promise.all([
       // 0. Clientes Activos/Morosos
       pool.query(
@@ -69,7 +71,7 @@ const getDashboardStats = async (req, res) => {
         `SELECT pl.nombre_plan AS name, COUNT(m.id_membresia)::int AS value
         FROM membresias m
         INNER JOIN planes pl ON m.id_plan = pl.id_plan
-        WHERE m.estado = 'Activa'
+        WHERE m.estado = 'Activa' AND m.fecha_inicio <= CURRENT_DATE AND m.fecha_fin > CURRENT_DATE
         GROUP BY pl.nombre_plan`
       ),
       
@@ -105,7 +107,7 @@ const getDashboardStats = async (req, res) => {
           u.id_usuario AS id, 
           u.nombre || ' ' || u.apellido AS nombre, 
           pl.nombre_plan AS plan, 
-          20 AS asistencia, 
+          COUNT(p.id_pago)::int AS pagos,
           COALESCE(SUM(p.monto), 0)::numeric AS gasto
         FROM usuarios u
         INNER JOIN membresias m ON u.id_usuario = m.id_cliente
@@ -121,8 +123,7 @@ const getDashboardStats = async (req, res) => {
       
       // 8. Nuevos este mes (Membresías que iniciaron este mes)
       pool.query(
-        `SELECT COUNT(*)::int AS total FROM membresias 
-         WHERE fecha_inicio >= date_trunc('month', CURRENT_DATE)`
+        `SELECT COUNT(*)::int AS total FROM usuarios u JOIN roles r ON r.id_rol=u.id_rol WHERE r.nombre_rol='Cliente' AND u.fecha_registro >= date_trunc('month', CURRENT_DATE)`
       ),
 
       // 9. Cancelaciones (Membresías vencidas o marcadas como inactivas)
@@ -139,9 +140,7 @@ const getDashboardStats = async (req, res) => {
 
       // 11. Ocupación (Cálculo del % basado en un máximo de 200 personas)
       pool.query(
-        `SELECT LEAST(ROUND((COUNT(*)::numeric / 200.0) * 100), 100)::int AS porcentaje 
-         FROM usuarios 
-         WHERE estado = 'Activo' AND id_rol = 4`
+        `SELECT COUNT(*)::int AS total FROM usuarios u JOIN roles r ON r.id_rol=u.id_rol WHERE r.nombre_rol='Cliente' AND NOT EXISTS (SELECT 1 FROM membresias m WHERE m.id_cliente=u.id_usuario)`
       )
     ]);
 
@@ -160,8 +159,8 @@ const getDashboardStats = async (req, res) => {
         // Insertamos los 4 nuevos valores a la respuesta de la API
         nuevosMes: nuevosMesDB.rows[0].total,
         cancelaciones: cancelacionesDB.rows[0].total,
-        asistenciaHoy: asistenciaProxyDB.rows[0].total,
-        ocupacion: ocupacionDB.rows[0].porcentaje
+        pagosHoy: pagosHoyDB.rows[0].total,
+        sinPlan: clientesSinPlanDB.rows[0].total
       },
       chartIngresos: graficoIngresos.rows,
       chartPlanes: chartPlanes,
@@ -277,10 +276,11 @@ const createUsuario = async (req, res) => {
     return res.status(201).json({
       message: emailResult.sent
         ? 'Usuario creado y correo enviado.'
-        : 'Usuario creado. Configura SMTP para enviar correos automaticamente.',
+        : `Usuario creado. ${emailResult.reason}`,
       usuario: rows[0],
       correoEnviado: emailResult.sent,
-      temporaryPassword: emailResult.sent || process.env.NODE_ENV === 'production'
+      correoError: emailResult.sent ? undefined : emailResult.code,
+      temporaryPassword: emailResult.sent
         ? undefined
         : temporaryPassword,
     });
@@ -299,6 +299,7 @@ const createUsuario = async (req, res) => {
 };
 
 const updateUsuario = async (req, res) => {
+  if (Number(req.params.id)===req.user.userId && ((req.body.estado && req.body.estado !== 'Activo') || (req.body.rol && req.body.rol !== 'Administrador'))) return res.status(400).json({message:'No puedes quitarte el acceso administrativo.'});
   const { nombre, apellido, email, telefono, estado, id_rol, rol, password } = req.body;
   const client = await pool.connect();
 
@@ -316,6 +317,7 @@ const updateUsuario = async (req, res) => {
     }
 
     const roleId = await resolveRoleId(client, { id_rol, rol });
+    if(Number(req.params.id)===req.user.userId && roleId && Number(roleId)!==current.rows[0].id_rol){await client.query('ROLLBACK');return res.status(400).json({message:'No puedes quitarte el rol administrativo.'});}
     const passwordHash = password
       ? await bcrypt.hash(password, SALT_ROUNDS)
       : current.rows[0].password_hash;
@@ -323,7 +325,7 @@ const updateUsuario = async (req, res) => {
     const { rows } = await client.query(
       `UPDATE usuarios
       SET id_rol = $1, nombre = $2, apellido = $3, email = $4,
-        password_hash = $5, telefono = $6, estado = $7
+        password_hash = $5, telefono = $6, estado = $7, token_version = token_version + CASE WHEN id_rol IS DISTINCT FROM $1 OR password_hash IS DISTINCT FROM $5 OR estado IS DISTINCT FROM $7 THEN 1 ELSE 0 END
       WHERE id_usuario = $8
       RETURNING id_usuario, id_rol, nombre, apellido, email, telefono, estado`,
       [
@@ -355,6 +357,7 @@ const updateUsuario = async (req, res) => {
 };
 
 const deleteUsuario = async (req, res) => {
+  if (Number(req.params.id)===req.user.userId) return res.status(400).json({message:'No puedes eliminar tu propia cuenta.'});
   try {
     const { rowCount } = await pool.query(
       'DELETE FROM usuarios WHERE id_usuario = $1',
@@ -471,6 +474,7 @@ const deletePlan = async (req, res) => {
 
 const getReportesFinancieros = async (req, res) => {
   const { desde, hasta, tipo = 'ingresos' } = req.query;
+  if (!['ingresos','morosos','nuevos'].includes(tipo) || [desde,hasta].some(d => d && !/^\d{4}-\d{2}-\d{2}$/.test(d)) || (desde && hasta && desde > hasta)) return res.status(400).json({message:'Filtros inválidos.'});
   const values = [];
   const filters = [];
 
@@ -545,9 +549,9 @@ const getReportesFinancieros = async (req, res) => {
           to_char(m.fecha_fin, 'YYYY-MM-DD') AS fecha_vencimiento,
           u.estado
         FROM usuarios u
-        INNER JOIN membresias m ON m.id_cliente = u.id_usuario
-        INNER JOIN planes pl ON pl.id_plan = m.id_plan
-        WHERE u.estado = 'Moroso' OR m.estado = 'Morosa' OR m.fecha_fin < CURRENT_DATE
+        JOIN LATERAL (SELECT * FROM membresias mm WHERE mm.id_cliente=u.id_usuario ORDER BY mm.fecha_fin DESC, mm.id_membresia DESC LIMIT 1) m ON true
+        JOIN planes pl ON pl.id_plan=m.id_plan
+        WHERE u.estado <> 'Inactivo' AND m.fecha_fin <= CURRENT_DATE AND NOT EXISTS (SELECT 1 FROM membresias vigente WHERE vigente.id_cliente=u.id_usuario AND vigente.estado='Activa' AND vigente.fecha_inicio <= CURRENT_DATE AND vigente.fecha_fin > CURRENT_DATE)
         ORDER BY m.fecha_fin ASC`
       );
 
@@ -568,27 +572,28 @@ const getReportesFinancieros = async (req, res) => {
     if (tipo === 'nuevos') {
       if (desde) {
         values.push(desde);
-        filters.push(`m.fecha_inicio::date >= $${values.length}`);
+        filters.push(`u.fecha_registro::date >= $${values.length}`);
       }
       if (hasta) {
         values.push(hasta);
-        filters.push(`m.fecha_inicio::date <= $${values.length}`);
+        filters.push(`u.fecha_registro::date <= $${values.length}`);
       }
-      const where = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
+      filters.push("r.nombre_rol = 'Cliente' AND u.fecha_registro IS NOT NULL");
+      const where = `WHERE ${filters.join(' AND ')}`;
 
       const { rows } = await pool.query(
         `SELECT
           u.id_usuario AS id,
-          to_char(m.fecha_inicio, 'YYYY-MM-DD') AS fecha_alta,
+          to_char(u.fecha_registro, 'YYYY-MM-DD') AS fecha_alta,
           u.nombre || ' ' || u.apellido AS cliente,
           u.email,
           pl.nombre_plan AS plan,
           u.estado
-        FROM membresias m
-        INNER JOIN usuarios u ON u.id_usuario = m.id_cliente
-        INNER JOIN planes pl ON pl.id_plan = m.id_plan
+        FROM usuarios u JOIN roles r ON r.id_rol=u.id_rol
+        LEFT JOIN LATERAL (SELECT * FROM membresias mm WHERE mm.id_cliente=u.id_usuario ORDER BY mm.fecha_fin DESC LIMIT 1) m ON true
+        LEFT JOIN planes pl ON pl.id_plan=m.id_plan
         ${where}
-        ORDER BY m.fecha_inicio DESC`,
+        ORDER BY u.fecha_registro DESC NULLS LAST`,
         values
       );
 
@@ -620,11 +625,12 @@ const getRutinas = async (req, res) => {
         r.id_rutina AS id, r.nombre, r.grupo, r.nivel, r.duracion, r.calorias, r.tipo_media AS "tipoMedia", r.media_url AS "mediaUrl",
         COALESCE(
           json_agg(
-            json_build_object('id', d.id_detalle, 'texto', d.texto, 'series', d.series, 'peso', d.peso)
+            json_build_object('id', d.id_detalle, 'texto', d.texto, 'series', d.series, 'peso', d.peso, 'repeticiones', d.repeticiones, 'descanso_segundos', d.descanso_segundos) ORDER BY d.id_detalle
           ) FILTER (WHERE d.id_detalle IS NOT NULL), '[]'
         ) AS detalles
       FROM rutinas r
       LEFT JOIN detalle_rutinas d ON r.id_rutina = d.id_rutina
+      WHERE r.id_cliente IS NULL
       GROUP BY r.id_rutina
       ORDER BY r.id_rutina DESC`
     );
@@ -636,7 +642,9 @@ const getRutinas = async (req, res) => {
 };
 
 const createRutina = async (req, res) => {
-  const { nombre, grupo, nivel, duracion, calorias, tipoMedia, mediaUrl, detalles } = req.body;
+  const { nombre, grupo, nivel, duracion = 45, calorias = 300, tipoMedia = 'imagen', mediaUrl = '' } = req.body;
+  if (typeof nombre !== 'string' || !nombre.trim() || nombre.length>100 || !Number.isInteger(Number(duracion)) || Number(duracion)<0 || !Number.isInteger(Number(calorias)) || Number(calorias)<0) return res.status(400).json({message:'Datos de rutina inválidos.'});
+  const detalles = normalizeDetails(req.body.detalles);
   const client = await pool.connect(); // Iniciamos transacción
 
   try {
@@ -654,8 +662,8 @@ const createRutina = async (req, res) => {
     if (detalles && detalles.length > 0) {
       for (let det of detalles) {
         await client.query(
-          `INSERT INTO detalle_rutinas (id_rutina, texto, series, peso) VALUES ($1, $2, $3, $4)`,
-          [idRutina, det.texto, det.series, det.peso]
+          `INSERT INTO detalle_rutinas (id_rutina, texto, series, peso, repeticiones, descanso_segundos) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [idRutina, det.texto, det.series, det.peso, det.repeticiones, det.descanso_segundos]
         );
       }
     }
@@ -673,7 +681,10 @@ const createRutina = async (req, res) => {
 
 const updateRutina = async (req, res) => {
   const { id } = req.params;
-  const { nombre, grupo, nivel, duracion, calorias, tipoMedia, mediaUrl, detalles } = req.body;
+  if (!(await pool.query('SELECT 1 FROM rutinas WHERE id_rutina=$1', [id])).rowCount) return res.status(404).json({message:'Rutina no encontrada.'});
+  const { nombre, grupo, nivel, duracion = 45, calorias = 300, tipoMedia = 'imagen', mediaUrl = '' } = req.body;
+  if (typeof nombre !== 'string' || !nombre.trim() || nombre.length>100 || !Number.isInteger(Number(duracion)) || Number(duracion)<0 || !Number.isInteger(Number(calorias)) || Number(calorias)<0) return res.status(400).json({message:'Datos de rutina inválidos.'});
+  const detalles = normalizeDetails(req.body.detalles);
   const client = await pool.connect();
 
   try {
@@ -693,8 +704,8 @@ const updateRutina = async (req, res) => {
     if (detalles && detalles.length > 0) {
       for (let det of detalles) {
         await client.query(
-          `INSERT INTO detalle_rutinas (id_rutina, texto, series, peso) VALUES ($1, $2, $3, $4)`,
-          [id, det.texto, det.series, det.peso]
+          `INSERT INTO detalle_rutinas (id_rutina, texto, series, peso, repeticiones, descanso_segundos) VALUES ($1, $2, $3, $4, $5, $6)`,
+          [id, det.texto, det.series, det.peso, det.repeticiones, det.descanso_segundos]
         );
       }
     }

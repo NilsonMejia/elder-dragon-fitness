@@ -1,0 +1,14 @@
+.workflow-form { display:grid; gap:18px; margin-bottom:24px; }
+.workflow-form form,.workflow-form label { display:grid; gap:8px; }
+.workflow-form input:not([type=checkbox]),.workflow-form select,.workflow-form textarea,.exercise-editor input { width:100%; padding:10px; background:#07111f; color:#f5f7fb; border:1px solid #40516b; border-radius:7px; }
+.workflow-form input[type=checkbox] { width:auto; justify-self:start; }
+.workflow-form textarea { min-height:80px; }
+.workflow-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; }
+.exercise-editor { padding:16px; border:1px solid #40516b; border-radius:10px; }
+.exercise-row { display:grid; grid-template-columns:2fr repeat(4,1fr) auto; gap:10px; margin-bottom:15px; align-items:end; }
+.exercise-row label { min-width:0; }
+.workflow-error { color:#ff9898; margin:16px 0; }
+.progress-entry { padding:14px 0; border-top:1px solid #40516b; white-space:pre-wrap; }
+.alert-list { margin:18px 0; padding:16px; border:1px solid #ddad4b; border-radius:10px; }
+.alert-list li { margin:8px 0; }
+@media(max-width:900px){.exercise-row{grid-template-columns:repeat(2,minmax(0,1fr));}.workflow-grid{grid-template-columns:1fr;}}

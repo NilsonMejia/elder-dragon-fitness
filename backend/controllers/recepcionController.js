@@ -34,7 +34,7 @@ const getClientes = async (req, res) => {
         SELECT *
         FROM membresias mm
         WHERE mm.id_cliente = u.id_usuario
-        ORDER BY mm.fecha_fin DESC, mm.id_membresia DESC
+        ORDER BY (mm.estado='Activa' AND mm.fecha_inicio <= CURRENT_DATE AND mm.fecha_fin > CURRENT_DATE) DESC, mm.fecha_fin DESC, mm.id_membresia DESC
         LIMIT 1
       ) m ON true
       LEFT JOIN planes p ON p.id_plan = m.id_plan
@@ -121,10 +121,11 @@ const createCliente = async (req, res) => {
     return res.status(201).json({
       message: emailResult.sent
         ? 'Cliente creado y correo enviado.'
-        : 'Cliente creado. Configura SMTP para enviar correos automaticamente.',
+        : `Cliente creado. ${emailResult.reason}`,
       cliente: rows[0],
       correoEnviado: emailResult.sent,
-      temporaryPassword: emailResult.sent || process.env.NODE_ENV === 'production'
+      correoError: emailResult.sent ? undefined : emailResult.code,
+      temporaryPassword: emailResult.sent
         ? undefined
         : temporaryPassword,
     });
@@ -152,7 +153,8 @@ const updateCliente = async (req, res) => {
         apellido = COALESCE($2, apellido),
         email = COALESCE($3, email),
         telefono = COALESCE($4, telefono),
-        estado = COALESCE($5, estado)
+        estado = COALESCE($5, estado),
+        token_version = token_version + CASE WHEN $5 IS NOT NULL AND $5 <> estado THEN 1 ELSE 0 END
       FROM roles r
       WHERE u.id_rol = r.id_rol
         AND r.nombre_rol = 'Cliente'
@@ -187,7 +189,7 @@ const updateClienteEstado = async (req, res) => {
   try {
     const { rows } = await pool.query(
       `UPDATE usuarios u
-      SET estado = $1
+      SET estado = $1, token_version = token_version + 1
       FROM roles r
       WHERE u.id_rol = r.id_rol
         AND r.nombre_rol = 'Cliente'
@@ -233,73 +235,7 @@ const deleteCliente = async (req, res) => {
   }
 };
 
-const registrarPago = async (req, res) => {
-  const {
-    id_cliente,
-    id_plan,
-    monto,
-    metodo_pago,
-    fecha_inicio,
-    num_factura_electronica,
-  } = req.body;
-
-  if (!id_cliente || !id_plan || monto == null || !metodo_pago) {
-    return res.status(400).json({
-      message: 'Cliente, plan, monto y metodo de pago son obligatorios.',
-    });
-  }
-
-  const client = await pool.connect();
-
-  try {
-    await client.query('BEGIN');
-
-    const plan = await client.query('SELECT * FROM planes WHERE id_plan = $1', [id_plan]);
-    if (!plan.rows.length) {
-      await client.query('ROLLBACK');
-      return res.status(404).json({ message: 'Plan no encontrado.' });
-    }
-
-    const inicio = fecha_inicio || new Date().toISOString().slice(0, 10);
-    const membresia = await client.query(
-      `INSERT INTO membresias (id_cliente, id_plan, fecha_inicio, fecha_fin, estado)
-      VALUES ($1, $2, $3::date, $3::date + ($4::int * INTERVAL '1 day'), 'Activa')
-      RETURNING *`,
-      [id_cliente, id_plan, inicio, plan.rows[0].duracion_dias]
-    );
-
-    const factura = num_factura_electronica || `FE-EDF-${Date.now()}`;
-    const pago = await client.query(
-      `INSERT INTO pagos (id_membresia, id_recepcionista, monto, metodo_pago, num_factura_electronica)
-      VALUES ($1, $2, $3, $4, $5)
-      RETURNING *`,
-      [membresia.rows[0].id_membresia, req.user.userId, monto, metodo_pago, factura]
-    );
-
-    await client.query(
-      "UPDATE usuarios SET estado = 'Activo' WHERE id_usuario = $1",
-      [id_cliente]
-    );
-
-    await client.query('COMMIT');
-
-    return res.status(201).json({
-      membresia: membresia.rows[0],
-      pago: pago.rows[0],
-    });
-  } catch (error) {
-    await client.query('ROLLBACK');
-
-    if (error.code === '23505') {
-      return res.status(409).json({ message: 'El numero de factura ya existe.' });
-    }
-
-    console.error('Error registrando pago:', error);
-    return res.status(500).json({ message: 'Error interno del servidor.' });
-  } finally {
-    client.release();
-  }
-};
+const { registrarPago } = require('./paymentController');
 
 const getPagos = async (req, res) => {
   const { id_cliente } = req.query;

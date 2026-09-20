@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageShell } from './Dashboard';
 import '../../css/admin.css';
@@ -49,6 +49,7 @@ const Planes = () => {
       navigate('/login');
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchPlanes();
   }, [token, navigate, fetchPlanes]);
 

@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend,
   Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import '../../css/admin.css';
+import Alerts from '../../components/Alerts';
+import { sessionUser } from '../../lib/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -113,6 +115,9 @@ const Sidebar = ({ adminName, onLogout }) => (
         <span>Rutinas</span>
       </NavLink>
 
+      <NavLink to="/admin/asignaciones" className="nav-item">Asignaciones</NavLink>
+      <NavLink to="/recepcion/clientes" className="nav-item">Clientes</NavLink>
+      <NavLink to="/recepcion/pagos" className="nav-item">Pagos</NavLink>
       <NavLink to="/admin/configuracion" className="nav-item">
         <span className="nav-icon"><IconConfig /></span>
         <span>Configuración</span>
@@ -137,8 +142,7 @@ const AdminTopbar = () => (
 
 export const AdminPageShell = ({ children }) => {
   const navigate = useNavigate();
-  const storedUser = localStorage.getItem('usuario') || sessionStorage.getItem('usuario');
-  const adminName = storedUser ? JSON.parse(storedUser).nombre : 'Admin';
+  const adminName = sessionUser()?.nombre || 'Admin';
 
   const handleLogout = () => {
     sessionStorage.clear();
@@ -162,12 +166,12 @@ export const AdminPageShell = ({ children }) => {
 // =========================================================
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [adminName, setAdminName] = useState('Admin');
+  const adminName = sessionUser()?.nombre || 'Admin';
   const [loading, setLoading] = useState(true);
 
   const [stats, setStats] = useState({
     activos: 0, morosos: 0, ingresos: 0, rutinas: 0,
-    nuevosMes: 0, cancelaciones: 0, asistenciaHoy: 0, ocupacion: 0,
+    nuevosMes: 0, cancelaciones: 0, pagosHoy: 0, sinPlan: 0,
   });
   const [chartIngresos, setChartIngresos] = useState([]);
   const [chartMembresias, setChartMembresias] = useState([]);
@@ -176,7 +180,6 @@ const Dashboard = () => {
   const [topClientes, setTopClientes] = useState([]);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('usuario') || sessionStorage.getItem('usuario');
     const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
     if (!token) {
@@ -184,10 +187,6 @@ const Dashboard = () => {
       return;
     }
 
-    if (storedUser) {
-      try { setAdminName(JSON.parse(storedUser).nombre); }
-      catch (_) { setAdminName('Admin'); }
-    }
 
     const fetchDashboardData = async () => {
       try {
@@ -205,8 +204,8 @@ const Dashboard = () => {
           rutinas: data.stats?.rutinas || 0,
           nuevosMes: data.stats?.nuevosMes || 0,
           cancelaciones: data.stats?.cancelaciones || 0,
-          asistenciaHoy: data.stats?.asistenciaHoy || 0,
-          ocupacion: data.stats?.ocupacion || 0,
+          pagosHoy: data.stats?.pagosHoy || 0,
+          sinPlan: data.stats?.sinPlan || 0,
         });
 
         if (data.chartIngresos && Array.isArray(data.chartIngresos)) {
@@ -245,7 +244,7 @@ const Dashboard = () => {
     { label: 'Clientes Morosos', value: stats.morosos, Icon: IconAlerta, tone: 'red' },
     { label: 'Ingresos del Mes', value: money(stats.ingresos), Icon: IconDinero, tone: 'blue' },
     { label: 'Nuevos Este Mes', value: `+${stats.nuevosMes}`, Icon: IconNuevo, tone: 'green' },
-    { label: 'Cancelaciones', value: stats.cancelaciones, Icon: IconMenos, tone: 'red' },
+    { label: 'Membresías vencidas / inactivas', value: stats.cancelaciones, Icon: IconMenos, tone: 'red' },
   ];
 
   const activityIcons = {
@@ -256,6 +255,7 @@ const Dashboard = () => {
 
   return (
     <AdminPageShell>
+      <Alerts />
       <header
         className="content-header"
         style={{
@@ -291,7 +291,6 @@ const Dashboard = () => {
                     <span>{kpi.label}</span>
                   </div>
                   <p className="stat-value">{kpi.value}</p>
-                  <span className="stat-trend">↑ vs mes anterior</span>
                 </div>
               );
             })}
@@ -407,7 +406,7 @@ const Dashboard = () => {
 
             <div className="panel">
               <div className="panel-head">
-                <h3>Top Clientes del Mes</h3>
+                <h3>Clientes por gasto acumulado</h3>
               </div>
               <div className="table-wrap">
                 <table className="admin-table">
@@ -415,7 +414,7 @@ const Dashboard = () => {
                     <tr>
                       <th>Cliente</th>
                       <th>Plan</th>
-                      <th>Asist.</th>
+                      <th>Pagos</th>
                       <th>Gasto</th>
                     </tr>
                   </thead>
@@ -430,7 +429,7 @@ const Dashboard = () => {
                             </div>
                           </td>
                           <td><span className={`badge-plan ${cliente.plan.toLowerCase()}`}>{cliente.plan}</span></td>
-                          <td>{cliente.asistencia}</td>
+                          <td>{cliente.pagos}</td>
                           <td className="text-green bold">${cliente.gasto}</td>
                         </tr>
                       ))

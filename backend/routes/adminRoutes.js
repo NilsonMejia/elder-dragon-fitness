@@ -1,4 +1,5 @@
 const express = require('express');
+const validation = require('../middleware/validation');
 const {
   getDashboardStats,
   getUsuarios,
@@ -30,14 +31,14 @@ router.get('/reportes', getReportesFinancieros);
 
 router.get('/usuarios', getUsuarios);
 router.get('/usuarios/:id', getUsuarioById);
-router.post('/usuarios', createUsuario);
-router.put('/usuarios/:id', updateUsuario);
+router.post('/usuarios', validation.user, createUsuario);
+router.put('/usuarios/:id', validation.user, updateUsuario);
 router.delete('/usuarios/:id', deleteUsuario);
 
 router.get('/planes', getPlanes);
 router.get('/planes/:id', getPlanById);
-router.post('/planes', createPlan);
-router.put('/planes/:id', updatePlan);
+router.post('/planes', validation.plan, createPlan);
+router.put('/planes/:id', validation.plan, updatePlan);
 router.delete('/planes/:id', deletePlan);
 
 // ==========================================
@@ -48,4 +49,9 @@ router.post('/rutinas', createRutina);
 router.put('/rutinas/:id', updateRutina);
 router.delete('/rutinas/:id', deleteRutina);
 
-module.exports = router;
+const settings=require('../controllers/settingsController');
+router.get('/configuracion',settings.getSettings);
+router.put('/configuracion',settings.saveSettings);
+router.put('/password',settings.changePassword);
+router.get('/alertas',async(req,res)=>res.json(await require('../services/membershipService').alerts()));
+module.exports=router;

@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { AdminPageShell } from './Dashboard';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import WorkspaceShell from '../../components/WorkspaceShell';
+import ExerciseEditor from '../../components/ExerciseEditor';
 import '../../css/admin.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -44,7 +45,7 @@ const Rutinas = () => {
   const fetchRutinas = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`${API_URL}/admin/rutinas`, {
+      const response = await fetch(`${API_URL}/deportivo/rutinas`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Error al cargar las rutinas.');
@@ -59,6 +60,7 @@ const Rutinas = () => {
   }, [token]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchRutinas();
   }, [fetchRutinas]);
 
@@ -87,7 +89,7 @@ const Rutinas = () => {
   const handleCrear = () => {
     setRutinaEditando({
       id: null, nombre: '', grupo: 'Pecho', nivel: 'Principiante', duracion: 45, calorias: 300,
-      tipoMedia: 'imagen', mediaUrl: '', detalles: [{ id: Date.now(), texto: '', series: '', peso: '' }],
+      tipoMedia: 'imagen', mediaUrl: '', detalles: [{ id: Date.now(), texto: '', series: '3', repeticiones: '10', peso: 'Libre', descanso_segundos: 60 }],
     });
     setActiveTab('info');
     setModalOpen(true);
@@ -102,7 +104,7 @@ const Rutinas = () => {
   const handleEliminar = async (id) => {
     if (!window.confirm('¿Estás seguro de eliminar esta plantilla del catálogo?')) return;
     try {
-      const response = await fetch(`${API_URL}/admin/rutinas/${id}`, {
+      const response = await fetch(`${API_URL}/deportivo/rutinas/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -119,7 +121,7 @@ const Rutinas = () => {
     setIsSubmitting(true);
 
     const isNew = !rutinaEditando.id;
-    const endpoint = isNew ? `${API_URL}/admin/rutinas` : `${API_URL}/admin/rutinas/${rutinaEditando.id}`;
+    const endpoint = isNew ? `${API_URL}/deportivo/rutinas` : `${API_URL}/deportivo/rutinas/${rutinaEditando.id}`;
     const method = isNew ? 'POST' : 'PUT';
 
     try {
@@ -128,7 +130,7 @@ const Rutinas = () => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify(rutinaEditando)
       });
-      if (!response.ok) throw new Error('Error al guardar la rutina.');
+      if (!response.ok) throw new Error((await response.json()).message || 'Error al guardar la rutina.');
       
       setModalOpen(false);
       fetchRutinas();
@@ -140,7 +142,7 @@ const Rutinas = () => {
   };
 
   return (
-    <AdminPageShell>
+    <WorkspaceShell>
       <header className="content-header">
         <div>
           <h1>Catálogo de Rutinas</h1>
@@ -244,7 +246,7 @@ const Rutinas = () => {
                     {rutina.detalles.slice(0, 3).map((d) => (
                       <li key={d.id} style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <span>• {d.texto}</span>
-                        <span style={{ color: '#00ff88' }}>{d.series}</span>
+                        <span style={{ color: '#00ff88' }}>{d.series} × {d.repeticiones}</span>
                       </li>
                     ))}
                     {rutina.detalles.length > 3 && (
@@ -330,38 +332,7 @@ const Rutinas = () => {
                 </div>
               )}
 
-              {activeTab === 'ejercicios' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-                  {rutinaEditando.detalles.map((detalle, index) => (
-                    <div key={detalle.id || index} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '10px', alignItems: 'center' }}>
-                      <input className="admin-input" type="text" value={detalle.texto} placeholder="Nombre del ejercicio" onChange={(e) => {
-                        const nuevos = [...rutinaEditando.detalles];
-                        nuevos[index] = { ...nuevos[index], texto: e.target.value };
-                        setRutinaEditando({ ...rutinaEditando, detalles: nuevos });
-                      }} />
-                      <input className="admin-input" type="text" value={detalle.series} placeholder="Ej: 4x10" onChange={(e) => {
-                        const nuevos = [...rutinaEditando.detalles];
-                        nuevos[index] = { ...nuevos[index], series: e.target.value };
-                        setRutinaEditando({ ...rutinaEditando, detalles: nuevos });
-                      }} />
-                      <input className="admin-input" type="text" value={detalle.peso} placeholder="Ej: Libre" onChange={(e) => {
-                        const nuevos = [...rutinaEditando.detalles];
-                        nuevos[index] = { ...nuevos[index], peso: e.target.value };
-                        setRutinaEditando({ ...rutinaEditando, detalles: nuevos });
-                      }} />
-                      <button type="button" className="btn-edit" onClick={() => {
-                        const nuevos = rutinaEditando.detalles.filter((_, i) => i !== index);
-                        setRutinaEditando({ ...rutinaEditando, detalles: nuevos });
-                      }}><IconTrash size={16} color="#ff4d4d" /></button>
-                    </div>
-                  ))}
-                  <button type="button" className="admin-btn-secondary" style={{ marginTop: '10px' }} onClick={() => setRutinaEditando({
-                    ...rutinaEditando, detalles: [...rutinaEditando.detalles, { id: Date.now(), texto: '', series: '', peso: '' }]
-                  })}>
-                    + Añadir Ejercicio
-                  </button>
-                </div>
-              )}
+              {activeTab === 'ejercicios' && <ExerciseEditor value={rutinaEditando.detalles} onChange={detalles=>setRutinaEditando({...rutinaEditando,detalles})} />}
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '30px' }}>
                 <button type="button" className="admin-btn-secondary" style={{ flex: 1 }} onClick={() => setModalOpen(false)}>Cancelar</button>
@@ -373,7 +344,7 @@ const Rutinas = () => {
           </div>
         </div>
       )}
-    </AdminPageShell>
+    </WorkspaceShell>
   );
 };
 

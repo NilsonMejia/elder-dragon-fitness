@@ -6,12 +6,18 @@
     "dev": "concurrently -n BACKEND,FRONTEND -c green,cyan \"npm --prefix backend run dev\" \"npm --prefix frontend run dev\"",
     "dev:backend": "npm --prefix backend run dev",
     "dev:frontend": "npm --prefix frontend run dev",
-    "db:seed": "npm --prefix backend run db:seed"
+    "db:seed": "npm --prefix backend run db:seed",
+    "db:migrate": "npm --prefix backend run db:migrate",
+    "build": "npm --prefix frontend run build",
+    "test": "npm --prefix backend test",
+    "email:check": "npm --prefix backend run email:check"
   },
   "devDependencies": {
-    "concurrently": "^10.0.5"
+    "concurrently": "10.0.5"
   },
-  "dependencies": {
-    "recharts": "^3.10.1"
-  }
+  "engines": {
+    "node": "24.21.0",
+    "npm": "11.19.0"
+  },
+  "packageManager": "npm@11.19.0"
 }

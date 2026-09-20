@@ -13,7 +13,7 @@ const getMiPerfil = async (req, res) => {
         SELECT *
         FROM membresias mm
         WHERE mm.id_cliente = u.id_usuario
-        ORDER BY mm.fecha_fin DESC, mm.id_membresia DESC
+        ORDER BY (mm.estado='Activa' AND mm.fecha_inicio <= CURRENT_DATE AND mm.fecha_fin > CURRENT_DATE) DESC, mm.fecha_fin DESC, mm.id_membresia DESC
         LIMIT 1
       ) m ON true
       LEFT JOIN planes p ON p.id_plan = m.id_plan
@@ -48,49 +48,5 @@ const getMiPerfil = async (req, res) => {
   }
 };
 
-const getMiRutina = async (req, res) => {
-  try {
-    const rutina = await pool.query(
-      `SELECT
-        ru.id_rutina,
-        ru.nombre,
-        ru.fecha_asignacion,
-        ent.nombre || ' ' || ent.apellido AS entrenador
-      FROM rutinas ru
-      LEFT JOIN usuarios ent ON ent.id_usuario = ru.id_entrenador
-      WHERE ru.id_cliente = $1
-      ORDER BY ru.fecha_asignacion DESC NULLS LAST, ru.id_rutina DESC
-      LIMIT 1`,
-      [req.user.userId]
-    );
-
-    if (!rutina.rows.length) {
-      return res.json(null);
-    }
-
-    const detalles = await pool.query(
-      `SELECT
-        dr.id_detalle AS id,
-        dr.texto AS ejercicio,
-        dr.series,
-        COALESCE(dr.peso, 'Libre') AS peso
-      FROM detalle_rutinas dr
-      WHERE dr.id_rutina = $1
-      ORDER BY dr.id_detalle ASC`,
-      [rutina.rows[0].id_rutina]
-    );
-
-    return res.json({
-      ...rutina.rows[0],
-      detalles: detalles.rows,
-    });
-  } catch (error) {
-    console.error('Error obteniendo rutina de cliente:', error);
-    return res.status(500).json({ message: 'Error interno del servidor.' });
-  }
-};
-
-module.exports = {
-  getMiPerfil,
-  getMiRutina,
-};
+const { mine: getMiRutina } = require('./assignmentController');
+module.exports={getMiPerfil,getMiRutina};

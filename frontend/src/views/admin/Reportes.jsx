@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageShell } from './Dashboard';
 import '../../css/admin.css';
@@ -26,25 +26,28 @@ const Reportes = () => {
   });
 
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+  const pendingRequest = useRef(null);
 
   const fetchReporte = useCallback(async () => {
+    pendingRequest.current?.abort();
+    const controller = new AbortController();
+    pendingRequest.current = controller;
     setLoading(true);
     setError('');
     try {
       const response = await fetch(
         `${API_URL}/admin/reportes?tipo=${tipoReporte}&desde=${fechaInicio}&hasta=${fechaFin}`, 
-        { headers: { Authorization: `Bearer ${token}` } }
+        { headers: { Authorization: `Bearer ${token}` }, signal: controller.signal }
       );
 
       if (!response.ok) throw new Error('Error al generar el reporte desde el servidor.');
 
       const data = await response.json();
-      setReportData(data);
+      if (!controller.signal.aborted) setReportData({ ...data, desde: fechaInicio, hasta: fechaFin });
     } catch (err) {
-      console.error(err);
-      setError('No se pudo conectar con la base de datos para cargar el reporte.');
+      if (!controller.signal.aborted) setError(err.message || 'No se pudo cargar el reporte.');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [tipoReporte, fechaInicio, fechaFin, token]);
 
@@ -53,33 +56,46 @@ const Reportes = () => {
       navigate('/login');
       return;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchReporte();
+    return () => pendingRequest.current?.abort();
   }, [fetchReporte, token, navigate]);
 
   // ==========================================
-  // EXPORTAR EXCEL (CSV Limpio)
+  // EXPORTAR ARCHIVO XLSX
   // ==========================================
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!reportData.filas || reportData.filas.length === 0) {
       return alert('No hay registros para exportar.');
     }
 
-    const headers = reportData.columnas.join(',');
-    const rows = reportData.filas.map(fila => Object.values(fila).map(val => `"${val}"`).join(','));
-    const csvContent = [headers, ...rows].join('\n');
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `Reporte_${tipoReporte}_${fechaInicio}_al_${fechaFin}.csv`;
-    link.click();
+    try {
+      const {default: writeExcelFile} = await import('write-excel-file/browser');
+      const cells = [
+        reportData.columnas.map(value => ({value, fontWeight: 'bold'})),
+        ...reportData.filas.map(row => Object.entries(row).map(([key,value]) => ({
+          value: key === 'monto' ? Number(value) : value ?? '',
+          ...(key === 'monto' ? {format: '0.00'} : {}),
+        }))),
+      ];
+      await writeExcelFile(cells, {sheet: 'Reporte', columns: reportData.columnas.map(() => ({width: 24}))})
+        .toFile('Reporte_' + reportData.tipo + '_' + reportData.desde + '_' + reportData.hasta + '.xlsx');
+    } catch(err){setError('No se pudo generar Excel: '+err.message);}
   };
 
   // ==========================================
   // GENERAR PDF PROFESIONAL
   // ==========================================
-  const handleGeneratePDF = () => {
-    window.print();
+  const handleGeneratePDF = async () => {
+    if(!reportData.filas.length)return setError('No hay datos para exportar.');
+    try {
+      const [{jsPDF},{autoTable}]=await Promise.all([import('jspdf'),import('jspdf-autotable')]);
+      const doc=new jsPDF({orientation:'landscape'});
+      doc.setFontSize(16);doc.text('Elder Dragon Fitness',14,16);
+      doc.setFontSize(10);doc.text('Reporte: '+reportData.tipo+' | '+(reportData.tipo==='morosos'?'Estado actual':reportData.desde+' a '+reportData.hasta),14,24);
+      autoTable(doc,{startY:30,head:[reportData.columnas],body:reportData.filas.map(row=>Object.values(row).map(v=>v??'')),styles:{fontSize:8},margin:{top:15,bottom:15}});
+      doc.save('Reporte_'+reportData.tipo+'.pdf');
+    } catch(err){setError('No se pudo generar PDF: '+err.message);}
   };
 
   return (
@@ -121,8 +137,8 @@ const Reportes = () => {
           <p>Auditoría contable, estados de membresía y nuevos registros.</p>
         </div>
         <div className="header-actions">
-          <button className="admin-btn-secondary" onClick={handleGeneratePDF}>📄 Generar PDF</button>
-          <button className="btn-gradient" onClick={handleExportExcel}>📊 Exportar Excel</button>
+          <button className="admin-btn-secondary" disabled={loading || !!error || !reportData.filas.length} onClick={handleGeneratePDF}>📄 Generar PDF</button>
+          <button className="btn-gradient" disabled={loading || !!error || !reportData.filas.length} onClick={handleExportExcel}>📊 Exportar Excel</button>
         </div>
       </header>
 
