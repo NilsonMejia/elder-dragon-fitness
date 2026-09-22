@@ -1,3 +1,4 @@
+import { Notice, useNotifications } from '../../components/Notifications';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageShell } from './Dashboard';
@@ -9,6 +10,7 @@ const roleClass = (rol) => (rol ? rol.toLowerCase().replace(' ', '-') : 'cliente
 const statusClass = (estado) => (estado ? estado.toLowerCase() : 'activo');
 
 const Usuarios = () => {
+  const { notify, confirm } = useNotifications();
   const navigate = useNavigate();
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -148,19 +150,19 @@ const Usuarios = () => {
       }
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      notify(err.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDelete=async(user)=>{
-    if(!window.confirm('¿Eliminar a '+user.nombre+'? Si tiene historial, suspende su cuenta en Editar.'))return;
+    if(!await confirm('¿Eliminar a '+user.nombre+'? Si tiene historial, suspende su cuenta en Editar.', { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true }))return;
     try{const response=await fetch(API_URL+'/admin/usuarios/'+user.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!response.ok)throw new Error((await response.json()).message);await fetchUsuarios();}catch(e){setError(e.message);}
   };
   return (
     <AdminPageShell>
-      {credential&&<div className="panel" role="status"><p>{credential}</p><button onClick={()=>setCredential('')}>Ocultar</button></div>}
+      <Notice message={credential} type="info" onClose={() => setCredential('')} />
       <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '30px' }}>
         <div>
           <h1>Gestión de Usuarios</h1>
@@ -172,11 +174,7 @@ const Usuarios = () => {
         </div>
       </header>
 
-      {error && (
-        <div style={{ padding: '15px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.3)', color: '#ff4d4d', borderRadius: '12px', marginBottom: '20px' }}>
-          {error}
-        </div>
-      )}
+      <Notice message={error} onClose={() => setError('')} />
 
       {loading ? (
         <div className="loader-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '250px', color: '#00ff88', gap: '15px' }}>

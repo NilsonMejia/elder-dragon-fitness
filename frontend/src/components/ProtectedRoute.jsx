@@ -1,6 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
+import { Notice } from './Notifications';
+
+const roleHomes = {
+  Administrador: '/admin/dashboard',
+  Recepcionista: '/recepcion/clientes',
+  Entrenador: '/entrenador',
+  Cliente: '/cliente/perfil',
+};
 
 export default function ProtectedRoute({ roles }) {
   const [session, setSession] = useState(null);
@@ -16,8 +24,8 @@ export default function ProtectedRoute({ roles }) {
     return () => { active = false; };
   }, [token, sessionKey]);
   if (!token) return <Navigate to="/login" replace />;
-  if (error?.key === sessionKey) return <main style={{padding:40}}><p role="alert">{error.message}</p><a href="/login">Volver al inicio de sesión</a></main>;
+  if (error?.key === sessionKey) return <main style={{padding:40}}><Notice message={error.message} /><a href="/login">Volver al inicio de sesión</a></main>;
   if (session?.key !== sessionKey) return <p role="status" style={{padding:40}}>Verificando sesión…</p>;
-  if (!roles.includes(session.user.rol)) return <main style={{padding:40}}><h1>Acceso restringido</h1><a href="/login">Volver al inicio de sesión</a></main>;
+  if (!roles.includes(session.user.rol)) return <Navigate to={roleHomes[session.user.rol] || '/login'} replace />;
   return <Outlet />;
 }

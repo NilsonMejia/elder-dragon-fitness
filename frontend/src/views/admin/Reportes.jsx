@@ -1,3 +1,4 @@
+import { Notice, useNotifications } from '../../components/Notifications';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageShell } from './Dashboard';
@@ -6,6 +7,7 @@ import '../../css/admin.css';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const Reportes = () => {
+  const { notify } = useNotifications();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -66,7 +68,7 @@ const Reportes = () => {
   // ==========================================
   const handleExportExcel = async () => {
     if (!reportData.filas || reportData.filas.length === 0) {
-      return alert('No hay registros para exportar.');
+      return notify('No hay registros para exportar.', 'info');
     }
 
     try {
@@ -181,7 +183,7 @@ const Reportes = () => {
         )}
       </div>
 
-      {error && <div style={{ padding: '15px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.3)', color: '#ff4d4d', borderRadius: '12px', marginBottom: '20px' }}>{error}</div>}
+      <Notice message={error} onClose={() => setError('')} />
 
       {loading ? (
         <div className="loader-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '200px', color: '#00ff88' }}>

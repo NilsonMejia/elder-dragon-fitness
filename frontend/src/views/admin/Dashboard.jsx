@@ -6,6 +6,7 @@ import {
 } from 'recharts';
 import '../../css/admin.css';
 import Alerts from '../../components/Alerts';
+import { Notice } from '../../components/Notifications';
 import { sessionUser } from '../../lib/api';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -114,10 +115,6 @@ const Sidebar = ({ adminName, onLogout }) => (
         <span className="nav-icon"><IconRutinas /></span>
         <span>Rutinas</span>
       </NavLink>
-
-      <NavLink to="/admin/asignaciones" className="nav-item">Asignaciones</NavLink>
-      <NavLink to="/recepcion/clientes" className="nav-item">Clientes</NavLink>
-      <NavLink to="/recepcion/pagos" className="nav-item">Pagos</NavLink>
       <NavLink to="/admin/configuracion" className="nav-item">
         <span className="nav-icon"><IconConfig /></span>
         <span>Configuración</span>
@@ -168,6 +165,7 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const adminName = sessionUser()?.nombre || 'Admin';
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const [stats, setStats] = useState({
     activos: 0, morosos: 0, ingresos: 0, rutinas: 0,
@@ -218,6 +216,7 @@ const Dashboard = () => {
         setTopClientes(data.topClientes || []);
       } catch (err) {
         console.error(err);
+        setError('No se pudieron cargar los datos del panel. Intenta recargar la página.');
       } finally {
         setLoading(false);
       }
@@ -255,6 +254,7 @@ const Dashboard = () => {
 
   return (
     <AdminPageShell>
+      <Notice message={error} />
       <Alerts />
       <header
         className="content-header"

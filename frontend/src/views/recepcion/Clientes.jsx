@@ -1,3 +1,4 @@
+import { Notice, useNotifications } from '../../components/Notifications';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../../css/Recepcion.css';
@@ -23,6 +24,7 @@ const IconLogout = () => (
 );
 
 const Clientes = () => {
+  const { notify, confirm } = useNotifications();
   const navigate = useNavigate();
 
   const [clientes, setClientes] = useState([]);
@@ -104,7 +106,7 @@ const Clientes = () => {
     fetchClientes();
   }, [fetchClientes]);
 
-  const remove=async(cliente)=>{if(!window.confirm('¿Eliminar a '+cliente.nombre+'? Si tiene historial, cambia su estado a Inactivo.'))return;try{const r=await fetch(API_URL+'/recepcion/clientes/'+cliente.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error((await r.json()).message);await fetchClientes();}catch(e){setError(e.message);}};
+  const remove=async(cliente)=>{if(!await confirm('¿Eliminar a '+cliente.nombre+'? Si tiene historial, cambia su estado a Inactivo.', { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true }))return;try{const r=await fetch(API_URL+'/recepcion/clientes/'+cliente.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error((await r.json()).message);await fetchClientes();}catch(e){setError(e.message);}};
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -131,7 +133,7 @@ const Clientes = () => {
       setCredential(result.temporaryPassword ? `${result.message} Contraseña temporal para ${formData.email}: ${result.temporaryPassword}` : result.message || 'Cliente guardado.');
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      notify(err.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -231,7 +233,7 @@ const Clientes = () => {
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="recepcion-content"><Alerts reception/>{credential&&<div className="panel-recep" role="status"><p>{credential}</p><button onClick={()=>setCredential('')}>Ocultar</button></div>}
+      <main className="recepcion-content"><Notice message={error} onClose={() => setError('')} /><Alerts reception/><Notice message={credential} type="info" onClose={() => setCredential('')} />
         <div className="topbar-recep">
           <div className="search-box">
             <span className="search-icon">🔍</span>
@@ -270,11 +272,6 @@ const Clientes = () => {
               {loading && (
                 <tr>
                   <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Cargando clientes...</td>
-                </tr>
-              )}
-              {error && (
-                <tr>
-                  <td colSpan="7" style={{ color: '#ff4d4d', textAlign: 'center', padding: '20px' }}>{error}</td>
                 </tr>
               )}
               {!loading && !error && clientesFiltrados.map(cliente => (

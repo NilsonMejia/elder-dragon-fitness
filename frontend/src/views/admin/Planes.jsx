@@ -1,3 +1,4 @@
+import { Notice, useNotifications } from '../../components/Notifications';
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AdminPageShell } from './Dashboard';
@@ -6,6 +7,7 @@ import '../../css/admin.css';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const Planes = () => {
+  const { notify, confirm } = useNotifications();
   const navigate = useNavigate();
   const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -103,7 +105,7 @@ const Planes = () => {
       fetchPlanes();
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      notify(err.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -113,7 +115,7 @@ const Planes = () => {
   // NUEVA FUNCIONALIDAD: ELIMINAR PLAN/OFERTA
   // ==========================================
   const handleDelete = async (id_plan, nombre_plan) => {
-    const confirmDelete = window.confirm(`¿Estás seguro de que deseas eliminar la oferta "${nombre_plan}"?`);
+    const confirmDelete = await confirm(`¿Estás seguro de que deseas eliminar la oferta "${nombre_plan}"?`, { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true });
     
     if (!confirmDelete) return;
 
@@ -129,11 +131,11 @@ const Planes = () => {
         throw new Error(errorData.message || 'Error al eliminar el plan.');
       }
 
-      alert('Plan eliminado exitosamente.');
+      notify('Plan eliminado exitosamente.', 'success');
       fetchPlanes(); // Recargar la lista
     } catch (err) {
       console.error(err);
-      alert(err.message);
+      notify(err.message, 'error');
     }
   };
 
@@ -151,11 +153,7 @@ const Planes = () => {
         </div>
       </header>
 
-      {error && (
-        <div style={{ padding: '15px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.3)', color: '#ff4d4d', borderRadius: '12px', marginBottom: '20px' }}>
-          {error}
-        </div>
-      )}
+      <Notice message={error} onClose={() => setError('')} />
 
       {loading ? (
         <div className="loader-container" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '250px', color: '#00ff88', gap: '15px' }}>

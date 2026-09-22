@@ -1,3 +1,4 @@
+import { Notice } from '../../components/Notifications';
 import { useEffect, useMemo, useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../../css/Recepcion.css';
@@ -329,11 +330,7 @@ const Pagos = () => {
               </button>
             </div>
 
-            {mensaje && (
-              <div style={{ marginTop: '15px', padding: '12px', borderRadius: '6px', background: mensaje.includes('registrado') ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 77, 77, 0.1)', color: mensaje.includes('registrado') ? '#00ff88' : '#ff4d4d', border: mensaje.includes('registrado') ? '1px solid rgba(0, 255, 136, 0.3)' : '1px solid rgba(255, 77, 77, 0.3)' }}>
-                {mensaje}
-              </div>
-            )}
+            <Notice message={mensaje} type={mensaje.includes('registrado') ? 'success' : 'error'} onClose={() => setMensaje('')} />
           </form>
         </div>
       </main>

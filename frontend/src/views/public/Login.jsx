@@ -1,3 +1,4 @@
+import { Notice } from '../../components/Notifications';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../../css/Login.css';
@@ -286,7 +287,7 @@ const Login = () => {
                 </div>
               </div>
 
-              {error && <p className="login-error">{error}</p>}
+              <Notice message={error} onClose={() => setError('')} />
 
               <button type="submit" className="hyper-btn" disabled={isSubmitting}>
                 <span>{isSubmitting ? 'Guardando...' : 'Guardar y Entrar'}</span>
@@ -351,7 +352,7 @@ const Login = () => {
                 <span className="forgot-password">Para recuperar tu acceso, contacta al administrador.</span>
               </div>
 
-              {error && <p className="login-error">{error}</p>}
+              <Notice message={error} onClose={() => setError('')} />
 
               <button type="submit" className="hyper-btn" disabled={isSubmitting}>
                 <span>{isSubmitting ? 'Validando...' : 'Acceder al Sistema'}</span>

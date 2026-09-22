@@ -39,12 +39,12 @@ function App() {
         <Route path="/admin/configuracion" element={<Configuracion />} />
         <Route path="/admin/rutinas" element={<Rutinas />} />
 
-        <Route path="/admin/asignaciones" element={<Asignaciones />} /></Route>
-<Route element={<ProtectedRoute roles={['Administrador','Entrenador']} />}>
+        <Route path="/admin/asignaciones" element={<Navigate to="/admin/rutinas" replace />} /></Route>
+<Route element={<ProtectedRoute roles={['Entrenador']} />}>
 <Route path="/entrenador" element={<Asignaciones />} />
 <Route path="/entrenador/catalogo" element={<Rutinas />} />
 </Route>
-<Route element={<ProtectedRoute roles={['Administrador','Recepcionista']} />}>
+<Route element={<ProtectedRoute roles={['Recepcionista']} />}>
         <Route path="/recepcion/clientes" element={<Clientes />} />
         <Route path="/recepcion/pagos" element={<Pagos />} />
 

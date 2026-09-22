@@ -1,3 +1,4 @@
+import { Notice } from '../../components/Notifications';
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../../css/Cliente.css';
@@ -158,7 +159,7 @@ const MiPerfil = () => {
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="cliente-content">
+      <main className="cliente-content"><Notice message={error} onClose={() => setError('')} />
         <h1 style={{ fontSize: '2rem', marginBottom: '10px' }}>Hola, {nombreCliente}</h1>
         <p style={{ color: '#8e9ba8', marginBottom: '30px' }}>Consulta el estado de tu membresía y tus próximos pagos.</p>
 
@@ -168,7 +169,7 @@ const MiPerfil = () => {
               ESTADO: {loading ? 'CARGANDO' : estado.toUpperCase()} {estado.toLowerCase() === 'activo' ? '🟢' : '🔴'}
             </h3>
             <p style={{ fontSize: '0.9rem', color: '#8e9ba8', margin: 0 }}>
-              {error || `Tu membresía "${plan}" ${estado.toLowerCase() === 'activo' ? 'está al día.' : 'requiere revisión.'}`}
+              {error ? 'No se pudo consultar el estado de tu plan.' : `Tu membresía "${plan}" ${estado.toLowerCase() === 'activo' ? 'está al día.' : 'requiere revisión.'}`}
             </p>
           </div>
           <div style={{ textAlign: 'right' }}>

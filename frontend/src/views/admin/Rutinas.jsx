@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import WorkspaceShell from '../../components/WorkspaceShell';
 import ExerciseEditor from '../../components/ExerciseEditor';
+import { Notice, useNotifications } from '../../components/Notifications';
 import '../../css/admin.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -23,7 +24,17 @@ const IconTarget   = (p) => <Icon {...p} path={<><circle cx="12" cy="12" r="10" 
 const GRUPOS = ['Pecho', 'Espalda', 'Pierna', 'Hombro', 'Bíceps', 'Tríceps', 'Core', 'Cardio', 'Full Body'];
 const NIVELES = ['Principiante', 'Intermedio', 'Avanzado'];
 
+function RoutineMedia({ src, type, name }) {
+  const [failed, setFailed] = useState(false);
+  const style = { width: '100%', height: '100%', objectFit: 'cover' };
+  if (!src || failed) return <div className="routine-media-fallback"><IconTarget size={36} /><span>{name}</span><small>Plantilla de entrenamiento</small></div>;
+  return type === 'video'
+    ? <video src={src} muted loop playsInline style={style} onError={() => setFailed(true)} />
+    : <img src={src} alt={name} loading="lazy" style={style} onError={() => setFailed(true)} />;
+}
+
 const Rutinas = () => {
+  const { notify, confirm } = useNotifications();
   const [rutinas, setRutinas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -44,6 +55,7 @@ const Rutinas = () => {
   // ==========================================
   const fetchRutinas = useCallback(async () => {
     setLoading(true);
+    setError('');
     try {
       const response = await fetch(`${API_URL}/deportivo/rutinas`, {
         headers: { Authorization: `Bearer ${token}` }
@@ -102,16 +114,17 @@ const Rutinas = () => {
   };
 
   const handleEliminar = async (id) => {
-    if (!window.confirm('¿Estás seguro de eliminar esta plantilla del catálogo?')) return;
+    if (!await confirm('¿Estás seguro de eliminar esta plantilla del catálogo?', { title: 'Eliminar plantilla', confirmLabel: 'Eliminar', danger: true })) return;
     try {
       const response = await fetch(`${API_URL}/deportivo/rutinas/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
       if (!response.ok) throw new Error('Error al eliminar la rutina.');
+      notify('Plantilla eliminada.', 'success');
       fetchRutinas();
     } catch (err) {
-      alert(err.message);
+      notify(err.message, 'error');
     }
   };
 
@@ -133,9 +146,10 @@ const Rutinas = () => {
       if (!response.ok) throw new Error((await response.json()).message || 'Error al guardar la rutina.');
       
       setModalOpen(false);
+      notify('Plantilla guardada.', 'success');
       fetchRutinas();
     } catch (err) {
-      alert(err.message);
+      notify(err.message, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -146,7 +160,7 @@ const Rutinas = () => {
       <header className="content-header">
         <div>
           <h1>Catálogo de Rutinas</h1>
-          <p>Administra las plantillas base desde PostgreSQL para tus entrenadores.</p>
+          <p>Administra las plantillas base que los entrenadores pueden personalizar para sus clientes.</p>
         </div>
         <div className="header-actions">
           <button className="admin-btn-primary" onClick={handleCrear}>
@@ -155,7 +169,7 @@ const Rutinas = () => {
         </div>
       </header>
 
-      {error && <div style={{ padding: '15px', background: 'rgba(255,77,77,0.1)', border: '1px solid rgba(255,77,77,0.3)', color: '#ff4d4d', borderRadius: '12px', marginBottom: '20px' }}>{error}</div>}
+      <Notice message={error} />
 
       <section className="stats-grid" style={{ marginBottom: '24px' }}>
         <div className="stat-card tone-blue">
@@ -215,11 +229,7 @@ const Rutinas = () => {
           {rutinasFiltradas.map((rutina) => (
             <article key={rutina.id} className="panel" style={{ padding: 0, overflow: 'hidden' }}>
               <div style={{ position: 'relative', height: '180px', width: '100%' }}>
-                {rutina.tipoMedia === 'video' ? (
-                  <video src={rutina.mediaUrl} muted loop playsInline style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : (
-                  <img src={rutina.mediaUrl} alt={rutina.nombre} loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                )}
+                <RoutineMedia key={`${rutina.tipoMedia}:${rutina.mediaUrl}`} src={rutina.mediaUrl} type={rutina.tipoMedia} name={rutina.nombre} />
                 <div style={{ position: 'absolute', top: '10px', right: '10px', display: 'flex', gap: '8px' }}>
                   <button className="admin-btn-secondary" style={{ padding: '6px', borderRadius: '8px', background: 'rgba(0,0,0,0.6)', border: 'none' }} onClick={() => handleEditar(rutina)} title="Editar">
                     <IconEdit size={16} color="#00ff88" />

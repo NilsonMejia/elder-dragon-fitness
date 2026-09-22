@@ -1,1 +1,1 @@
-export { default } from './WorkspaceShell';
+export { AdminPageShell as default } from '../views/admin/Dashboard';
