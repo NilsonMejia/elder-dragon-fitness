@@ -56,13 +56,7 @@ app.use((error,req,res,next)=>{
   const status=error.status || (['22P02','22007','22008','23514'].includes(error.code)?400:error.code==='23503'?409:500);
   res.status(status).json({message:status===500?'Error interno del servidor.':status===409?'El registro tiene relaciones o referencias inválidas.':error.status?error.message:'Datos inválidos.'});
 });
-if(require.main===module){
-  require('./database/migrate')().then(()=>syncMemberships()).then(()=>{
-    const server=app.listen(PORT,()=>console.log('Servidor en http://localhost:'+PORT));
-    const timer=setInterval(()=>syncMemberships().catch(e=>console.error(e.message)),60000);
-    timer.unref();
-    const stop=()=>{clearInterval(timer);server.close(()=>pool.end());};
-    process.on('SIGTERM',stop);process.on('SIGINT',stop);
-  }).catch(error=>{console.error(error.message);process.exitCode=1;pool.end();});
-}
+app.listen(PORT, () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+});
 module.exports=app;
