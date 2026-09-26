@@ -129,6 +129,61 @@ test('catalog edits, personal assignments, isolated snapshots and progress owner
   assert.equal((await request(`/deportivo/asignaciones/${id}/seguimiento`,tokens.trainer)).data.length,1);
 });
 
+test('notifications require authentication and isolate membership, routine and progress by role and owner', async () => {
+  assert.equal((await request('/notificaciones')).status,401);
+  const adminNotices = await request('/notificaciones',tokens.admin);
+  const receptionNotices = await request('/notificaciones',tokens.reception);
+  assert.equal(adminNotices.status,200);
+  assert.ok(adminNotices.data.some(n=>n.id.startsWith(`membership-${customerId}-`)));
+  assert.ok(adminNotices.data.every(n=>n.kind==='membership' && n.href==='/admin/usuarios'));
+  assert.deepEqual(receptionNotices.data.map(n=>n.id),adminNotices.data.map(n=>n.id));
+  assert.ok(receptionNotices.data.every(n=>n.href==='/recepcion/clientes'));
+
+  const mine = (await request('/cliente/rutina',tokens.client)).data;
+  const feedback = await request(`/deportivo/asignaciones/${mine.id_asignacion}/seguimiento`,tokens.trainer,'POST',{observaciones:'Revisar postura de espalda'});
+  assert.equal(feedback.status,201);
+  const own = await request('/notificaciones?id_usuario=1&rol=Administrador',tokens.client);
+  assert.equal(own.status,200);
+  assert.ok(own.data.some(n=>n.id===`routine-${mine.id_asignacion}`));
+  assert.ok(own.data.some(n=>n.id===`feedback-${feedback.data.id_seguimiento}`));
+  assert.ok(!own.data.some(n=>n.id.startsWith(`membership-${customerId}-`)));
+  assert.ok(own.data.every(n=>n.href.startsWith('/cliente/')));
+  const other = (await request('/notificaciones?id_usuario=7',tokens.newClient)).data;
+  assert.ok(other.some(n=>n.id.startsWith(`membership-${customerId}-`)));
+  assert.ok(!other.some(n=>n.kind==='routine' || n.kind==='feedback'));
+
+  const trainer = (await request('/notificaciones?rol=Administrador',tokens.trainer)).data;
+  assert.ok(trainer.length>0);
+  assert.ok(trainer.every(n=>n.kind==='progress' && n.href==='/entrenador'));
+  assert.ok(!trainer.some(n=>n.message.includes('Revisar postura')));
+  assert.deepEqual((await request('/notificaciones?id_entrenador=3',tokens.otherTrainer)).data,[]);
+
+  const old = await pool.query(`INSERT INTO rutina_seguimiento(id_asignacion,id_autor,observaciones,fecha)
+    VALUES($1,7,'Registro antiguo',CURRENT_TIMESTAMP - INTERVAL '31 days') RETURNING id_seguimiento`,[mine.id_asignacion]);
+  const recent = (await request('/notificaciones',tokens.trainer)).data;
+  assert.ok(!recent.some(n=>n.id===`progress-${old.rows[0].id_seguimiento}`));
+  for (let i=0;i<22;i++) await pool.query(`INSERT INTO rutina_seguimiento(id_asignacion,id_autor,observaciones) VALUES($1,7,$2)`,[mine.id_asignacion,`Avance ${i}`]);
+  assert.equal((await request('/notificaciones',tokens.trainer)).data.length,20);
+
+  await pool.query(`INSERT INTO membresias(id_cliente,id_plan,fecha_inicio,fecha_fin,estado)
+    VALUES($1,3,CURRENT_DATE,CURRENT_DATE+30,'Activa')`,[customerId]);
+  assert.ok(!(await request('/notificaciones',tokens.newClient)).data.some(n=>n.kind==='membership'));
+  const settings = (await pool.query('SELECT datos FROM configuracion WHERE id=1')).rows[0].datos;
+  try {
+    await pool.query(`UPDATE membresias SET fecha_fin=CURRENT_DATE+5 WHERE id_cliente=$1 AND estado='Activa'`,[customerId]);
+    await pool.query('UPDATE configuracion SET datos=$1 WHERE id=1',[{...settings,diasAviso:7,alertasMorosos:true}]);
+    const upcoming = (await request('/notificaciones',tokens.newClient)).data.filter(n=>n.kind==='membership');
+    assert.equal(upcoming.length,1);
+    assert.equal(upcoming[0].title,'Membresía por vencer');
+    await pool.query('UPDATE configuracion SET datos=$1 WHERE id=1',[{...settings,diasAviso:3,alertasMorosos:true}]);
+    assert.ok(!(await request('/notificaciones',tokens.newClient)).data.some(n=>n.kind==='membership'));
+    await pool.query('UPDATE configuracion SET datos=$1 WHERE id=1',[{...settings,diasAviso:7,alertasMorosos:false}]);
+    assert.ok(!(await request('/notificaciones',tokens.newClient)).data.some(n=>n.kind==='membership'));
+  } finally {
+    await pool.query('UPDATE configuracion SET datos=$1 WHERE id=1',[settings]);
+  }
+});
+
 test('configuration persists, maintenance gates clients and deactivation revokes existing sessions',async()=>{
   const settings=(await request('/admin/configuracion',tokens.admin)).data.datos;
   assert.equal((await request('/admin/configuracion',tokens.reception)).status,403);

@@ -2,7 +2,6 @@ import { Notice, useNotifications } from '../../components/Notifications';
 import { useEffect, useMemo, useState, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../../css/Recepcion.css';
-import Alerts from '../../components/Alerts';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
@@ -233,7 +232,7 @@ const Clientes = () => {
       </aside>
 
       {/* CONTENIDO PRINCIPAL */}
-      <main className="recepcion-content"><Notice message={error} onClose={() => setError('')} /><Alerts reception/><Notice message={credential} type="info" onClose={() => setCredential('')} />
+      <main className="recepcion-content"><Notice message={error} onClose={() => setError('')} /><Notice message={credential} type="info" onClose={() => setCredential('')} />
         <div className="topbar-recep">
           <div className="search-box">
             <span className="search-icon">🔍</span>

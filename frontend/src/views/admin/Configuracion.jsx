@@ -16,7 +16,7 @@ export default function Configuracion(){
       <form className="panel workflow-form" onSubmit={save}><h2>Datos del gimnasio</h2>
         {Object.entries({nombreLegal:'Nombre del gimnasio',direccion:'Dirección',telefono:'Teléfono',correo:'Correo'}).map(([k,label])=><label key={k}>{label}<input type={k==='correo'?'email':'text'} maxLength={k==='nombreLegal'?150:250} required={k==='nombreLegal'} value={data[k]} onChange={e=>change(k,e.target.value)}/></label>)}
         <p>Moneda de los planes y pagos: USD.</p>
-        <label><input type="checkbox" checked={data.alertasMorosos} onChange={e=>change('alertasMorosos',e.target.checked)}/> Mostrar avisos de vencimiento en administración y recepción</label>
+        <label><input type="checkbox" checked={data.alertasMorosos} onChange={e=>change('alertasMorosos',e.target.checked)}/> Mostrar avisos de vencimiento en administración, recepción y la cuenta del cliente</label>
         <label>Días de anticipación<input type="number" min="0" max="60" required value={data.diasAviso} onChange={e=>change('diasAviso',Number(e.target.value))}/></label>
         <label><input type="checkbox" checked={data.modoMantenimiento} onChange={e=>change('modoMantenimiento',e.target.checked)}/> Mantenimiento: suspender temporalmente el acceso del portal del cliente</label>
         <div><button className="btn-gradient" disabled={busy}>Guardar cambios</button> <button type="button" className="btn-outline" onClick={()=>{setData({...defaults});setMessageType('info');setMessage('Valores restablecidos en el formulario. Guarda para aplicarlos.');}}>Restaurar valores</button></div>

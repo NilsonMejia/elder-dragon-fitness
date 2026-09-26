@@ -34,6 +34,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/recepcion', recepcionRoutes);
 app.use('/api/deportivo', deportivoRoutes);
 app.use('/api/cliente', clienteRoutes);
+app.use('/api/notificaciones', require('./routes/notificationRoutes'));
 
 app.get('/api/health', async (req, res) => {
     await pool.query('SELECT 1');

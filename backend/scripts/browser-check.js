@@ -33,15 +33,53 @@ async function run(){
   const origin=`http://127.0.0.1:${vite.httpServer.address().port}`;
   browser=await chromium.launch({headless:true,...(process.env.PLAYWRIGHT_EXECUTABLE_PATH?{executablePath:process.env.PLAYWRIGHT_EXECUTABLE_PATH}:process.platform==='win32'?{channel:'msedge'}:{})});
   const page=await browser.newPage({viewport:{width:1440,height:1000}});
+  await page.emulateMedia({reducedMotion:'reduce'});
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   page.on('dialog', async dialog=>{errors.push('Unexpected native dialog: '+dialog.type());await dialog.dismiss();});
   const reports=path.resolve(__dirname,'../../.reports');
   await fs.mkdir(reports,{recursive:true});
+  async function screenshot(options){
+    await page.evaluate(()=>Promise.all(document.getAnimations().filter(animation=>animation.effect?.getTiming().iterations!==Infinity).map(animation=>animation.finished.catch(()=>{}))));
+    await page.screenshot(options);
+  }
   async function login(email,destination){
     await page.goto(origin+'/login');
     await page.locator('#email').fill(email);await page.locator('#password').fill('Browser-test-123!');
     await page.getByRole('button',{name:'Acceder al Sistema'}).click();
     await page.waitForURL(origin+destination);
+  }
+  async function notices(options={}) {
+    const trigger=page.getByRole('button',{name:/^Notificaciones/});
+    await trigger.waitFor();
+    assert.equal(await trigger.count(),1,'Exactly one notification button per protected view');
+    await trigger.click();
+    const dialog=page.getByRole('dialog',{name:'Notificaciones',exact:true});
+    await dialog.waitFor();
+    await dialog.getByRole('status').waitFor({state:'detached'});
+    assert.equal(await dialog.getByRole('alert').count(),0);
+    if(options.empty) await dialog.getByText('No tienes avisos por ahora',{exact:true}).waitFor();
+    if(options.message) await dialog.getByText(options.message,{exact:true}).waitFor();
+    if(options.prefix){
+      const hrefs=await dialog.getByRole('link').evaluateAll(links=>links.map(link=>link.getAttribute('href')));
+      assert.ok(hrefs.length>0);
+      assert.ok(hrefs.every(href=>href.startsWith(options.prefix)),'Role-specific notification destinations');
+    }
+    return {trigger,dialog};
+  }
+  async function checkRoute(route,options={}){
+    await page.goto(origin+route);
+    const {dialog}=await notices(options);
+    await page.keyboard.press('Escape');await dialog.waitFor({state:'detached'});
+    const sidebarClass=route.startsWith('/recepcion/')?'.recepcion-sidebar':'.admin-sidebar';
+    assert.equal(await page.locator(sidebarClass+' .sidebar-brand').count(),1);
+    const workspaceHeadingColors=await page.locator('.workspace-content h2').evaluateAll(headings=>headings.map(heading=>getComputedStyle(heading).color));
+    assert.ok(workspaceHeadingColors.every(color=>color==='rgb(245, 247, 251)'),'Workspace headings must remain readable on dark cards');
+  }
+  async function mobile(name){
+    await page.setViewportSize({width:390,height:844});
+    assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),name+' must not overflow on mobile');
+    await screenshot({path:path.join(reports,name+'-mobile.png'),fullPage:true});
+    await page.setViewportSize({width:1440,height:1000});
   }
   await page.goto(origin+'/login');
   await page.locator('#email').fill('admin@elderdragon.com');
@@ -50,7 +88,7 @@ async function run(){
   const loginError=page.locator('.notification-stack .notice-error');
   await loginError.getByText('Credenciales invalidas.',{exact:true}).waitFor();
   assert.equal(await loginError.getAttribute('role'),'alert');
-  await page.screenshot({path:path.join(reports,'login-error-notification.png')});
+  await screenshot({path:path.join(reports,'login-error-notification.png')});
   await loginError.getByRole('button',{name:/Cerrar notificaci/}).click();
   await loginError.waitFor({state:'detached'});
   console.log('OK: invalid login displays a dismissible error notification.');
@@ -60,17 +98,14 @@ async function run(){
   const adminLinks=await sidebar.getByRole('link').allTextContents();
   for(const label of ['Clientes','Pagos','Asignaciones']) assert.equal(await sidebar.getByRole('link',{name:label,exact:true}).count(),0);
   assert.equal(await sidebar.locator('.sidebar-brand').count(),1);
-  const membership=page.getByRole('button',{name:/Avisos de membres/});
   await page.locator('.loader-container').waitFor({state:'detached'});
-  await membership.click();
-  const membershipDialog=page.getByRole('dialog',{name:/Avisos de membres/});
-  await membershipDialog.waitFor();
+  const {trigger:membership,dialog:membershipDialog}=await notices({prefix:'/admin/'});
   const dialogBox=await membershipDialog.boundingBox();
   const viewport=page.viewportSize();
   assert.ok(dialogBox.width<=520,'Membership dialog should stay compact');
   assert.ok(Math.abs(dialogBox.x+dialogBox.width/2-viewport.width/2)<=2,'Membership dialog should be horizontally centered');
   assert.ok(Math.abs(dialogBox.y+dialogBox.height/2-viewport.height/2)<=2,'Membership dialog should be vertically centered');
-  await page.screenshot({path:path.join(reports,'membership-dialog.png')});
+  await screenshot({path:path.join(reports,'membership-dialog.png')});
   await page.keyboard.press('Escape');
   await membershipDialog.waitFor({state:'detached'});
   assert.ok(await membership.evaluate(element=>element===document.activeElement),'Escape should restore trigger focus');
@@ -79,7 +114,7 @@ async function run(){
   assert.deepEqual(await sidebar.getByRole('link').allTextContents(),adminLinks);
   assert.equal(await sidebar.locator('.sidebar-brand').count(),1);
   await page.setViewportSize({width:390,height:844});
-  await page.screenshot({path:path.join(reports,'admin-catalog-mobile.png'),fullPage:true});
+  await screenshot({path:path.join(reports,'admin-catalog-mobile.png'),fullPage:true});
   assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1),'Admin catalog must not overflow horizontally on mobile');
   await page.setViewportSize({width:1440,height:1000});
   for(const route of ['/recepcion/clientes','/recepcion/pagos','/entrenador']){
@@ -90,6 +125,18 @@ async function run(){
   await page.goto(origin+'/admin/asignaciones');
   await page.waitForURL(origin+'/admin/rutinas');
   console.log('OK: admin navigation, role isolation, mobile catalog and accessible membership dialog.');
+  for(const route of ['/admin/dashboard','/admin/usuarios','/admin/planes','/admin/reportes','/admin/configuracion','/admin/rutinas']) await checkRoute(route,{prefix:'/admin/'});
+  await page.route('**/api/notificaciones',route=>route.fulfill({status:500,contentType:'application/json',body:JSON.stringify({error:'Error de prueba temporal'})}));
+  await page.reload();
+  await page.getByRole('button',{name:/^Notificaciones/}).click();
+  const retryDialog=page.getByRole('dialog',{name:'Notificaciones',exact:true});
+  await retryDialog.getByText('No se pudieron cargar las notificaciones.',{exact:true}).waitFor();
+  await page.unroute('**/api/notificaciones');
+  await retryDialog.getByRole('button',{name:'Reintentar',exact:true}).click();
+  await retryDialog.getByRole('link').first().waitFor();
+  assert.equal(await retryDialog.getByRole('alert').count(),0,'Retry must recover the notification feed');
+  await page.keyboard.press('Escape');
+  console.log('OK: notification error feedback and retry recovery.');
   await page.goto(origin+'/admin/reportes');
   const excel=page.getByRole('button',{name:'Exportar Excel'});
   await excel.waitFor();
@@ -105,6 +152,7 @@ async function run(){
   await page.getByText('Configuración guardada.',{exact:true}).waitFor();await page.reload();
   assert.equal(await page.getByLabel('Nombre del gimnasio').inputValue(),'Gimnasio persistente');
   await login('recepcion1@elderdragon.com','/recepcion/clientes');
+  for(const route of ['/recepcion/pagos','/recepcion/clientes']) await checkRoute(route,{prefix:'/recepcion/'});
   await page.getByRole('button',{name:'Nuevo Cliente'}).click();
   await page.getByLabel('Nombre',{exact:true}).fill('Cliente navegador');
   await page.getByLabel('Apellido',{exact:true}).fill('Temporal');
@@ -128,19 +176,47 @@ async function run(){
   await edited.waitFor({state:'detached'});
   console.log('OK: alta, credenciales temporales, edición y eliminación de clientes.');
   await login('entrenador.carlos@elderdragon.com','/entrenador');
+  await checkRoute('/entrenador/catalogo',{empty:true});
+  const trainerLinks=await sidebar.getByRole('link').allTextContents();
+  await screenshot({path:path.join(reports,'trainer-catalog-desktop.png'),fullPage:true});
+  await mobile('trainer-catalog');
+  await checkRoute('/entrenador',{empty:true});
+  assert.deepEqual(await sidebar.getByRole('link').allTextContents(),trainerLinks);
+  assert.equal(await sidebar.getByRole('link',{name:'Usuarios',exact:true}).count(),0);
   await page.getByRole('heading',{name:'Rutinas y seguimiento',exact:true}).waitFor();
+  await screenshot({path:path.join(reports,'trainer-assignments-desktop.png'),fullPage:true});
+  await mobile('trainer-assignments');
   await page.getByLabel('Cliente',{exact:true}).selectOption('7');
   await page.getByLabel('Plantilla',{exact:true}).selectOption('1');
   await page.getByLabel('Nombre',{exact:true}).fill('Rutina desde navegador');
   await page.getByRole('button',{name:'Asignar rutina',exact:true}).click();
   await page.getByText('Rutina asignada. La anterior queda en el historial.').waitFor();
   await login('jorge.lopez@gmail.com','/cliente/perfil');
-  await page.goto(origin+'/cliente/rutina');
+  await checkRoute('/cliente/perfil',{prefix:'/cliente/'});
+  const clientLinks=await sidebar.getByRole('link').allTextContents();
+  await mobile('client-profile');
+  await checkRoute('/cliente/rutina',{message:'Rutina desde navegador',prefix:'/cliente/'});
+  assert.deepEqual(await sidebar.getByRole('link').allTextContents(),clientLinks);
+  assert.equal(await sidebar.getByRole('link',{name:'Usuarios',exact:true}).count(),0);
+  await screenshot({path:path.join(reports,'client-routine-desktop.png'),fullPage:true});
+  await mobile('client-routine');
+  await page.setViewportSize({width:390,height:844});
+  const clientNotice=await notices({message:'Rutina desde navegador',prefix:'/cliente/'});
+  await screenshot({path:path.join(reports,'client-notifications-mobile.png'),fullPage:true});
+  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth+1));
+  await page.keyboard.press('Escape');await clientNotice.dialog.waitFor({state:'detached'});
+  await page.setViewportSize({width:1440,height:1000});
   await page.getByRole('heading',{name:'Rutina desde navegador',exact:true}).waitFor();
   await page.getByLabel('Observaciones',{exact:true}).fill('Seguimiento creado desde el navegador');
   await page.getByLabel('Sesión completada',{exact:true}).check();
   await page.getByRole('button',{name:'Guardar seguimiento'}).click();
   await page.getByText('Seguimiento creado desde el navegador',{exact:true}).waitFor();
+  await login('entrenador.carlos@elderdragon.com','/entrenador');
+  const progressNotice=await notices({message:'Rutina desde navegador: Seguimiento creado desde el navegador',prefix:'/entrenador'});
+  await progressNotice.dialog.getByText(/^Progreso de Jorge/).waitFor();
+  await screenshot({path:path.join(reports,'trainer-progress-notifications.png'),fullPage:true});
+  await page.keyboard.press('Escape');
+  console.log('OK: notifications on every protected route, role isolation, empty state, trainer progress and mobile layouts.');
   assert.deepEqual(errors,[]);
   console.log('OK: configuración persistente, acceso de entrenador, asignación y seguimiento del cliente.');
 }

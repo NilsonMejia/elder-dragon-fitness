@@ -5,7 +5,6 @@ import {
   Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts';
 import '../../css/admin.css';
-import Alerts from '../../components/Alerts';
 import { Notice } from '../../components/Notifications';
 import { sessionUser } from '../../lib/api';
 
@@ -255,7 +254,6 @@ const Dashboard = () => {
   return (
     <AdminPageShell>
       <Notice message={error} />
-      <Alerts />
       <header
         className="content-header"
         style={{

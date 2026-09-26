@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { api } from '../lib/api';
 import { Notice } from './Notifications';
+import NotificationCenter from './NotificationCenter';
 
 const roleHomes = {
   Administrador: '/admin/dashboard',
@@ -27,5 +28,5 @@ export default function ProtectedRoute({ roles }) {
   if (error?.key === sessionKey) return <main style={{padding:40}}><Notice message={error.message} /><a href="/login">Volver al inicio de sesión</a></main>;
   if (session?.key !== sessionKey) return <p role="status" style={{padding:40}}>Verificando sesión…</p>;
   if (!roles.includes(session.user.rol)) return <Navigate to={roleHomes[session.user.rol] || '/login'} replace />;
-  return <Outlet />;
+  return <div className="authenticated-workspace"><NotificationCenter key={`${token}:${session.user.rol}`} role={session.user.rol} /><Outlet /></div>;
 }
