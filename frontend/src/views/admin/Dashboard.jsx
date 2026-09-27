@@ -106,6 +106,10 @@ const Sidebar = ({ adminName, onLogout }) => (
         <span>Planes</span>
       </NavLink>
 
+      <NavLink to="/admin/pagos" className="nav-item">
+        <span className="nav-icon"><IconPago /></span>
+        <span>Pagos</span>
+      </NavLink>
       <NavLink to="/admin/reportes" className="nav-item">
         <span className="nav-icon"><IconReportes /></span>
         <span>Reportes</span>

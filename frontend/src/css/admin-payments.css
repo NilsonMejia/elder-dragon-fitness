@@ -1,0 +1,17 @@
+.admin-payments { min-width: 0; display: grid; gap: 24px; }
+.admin-payments .payments-heading h1 { color: #f5f7fb; margin: 0 0 10px; font-size: clamp(1.6rem, 4vw, 2.2rem); }
+.admin-payments .payments-heading p { color: #aebdca; line-height: 1.6; }
+.admin-payments .panel-recep { margin: 0; min-width: 0; }
+.admin-payments .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.admin-payments .input-group { min-width: 0; }
+.admin-payments .input-group label { color: #c9d6e2; }
+.admin-payments .payments-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.admin-payments h2 { color: #f5f7fb; font-size: 1.2rem; }
+.admin-payments .payments-table-wrap { overflow-x: auto; max-width: 100%; }
+.admin-payments table { width: 100%; border-collapse: collapse; text-align: left; }
+.admin-payments caption { text-align: left; color: #aebdca; padding-bottom: 12px; }
+.admin-payments th, .admin-payments td { padding: 14px 12px; border-bottom: 1px solid #263340; white-space: nowrap; }
+.admin-payments th { color: #69dfaf; font-size: .8rem; }
+.admin-payments td { color: #e1e9f0; font-size: .875rem; }
+.admin-payments button:focus-visible, .admin-payments input:focus-visible, .admin-payments select:focus-visible, .admin-payments .payments-table-wrap:focus-visible { outline: 2px solid #51ffaa; outline-offset: 3px; }
+@media (max-width: 650px) { .admin-payments .form-grid { grid-template-columns: 1fr; } .admin-payments .panel-recep { padding: 18px; } }

@@ -52,6 +52,8 @@ npm.cmd run dev
 
 Frontend: http://localhost:5173. API: http://localhost:3000/api/health. La comprobación de salud consulta PostgreSQL. `npm.cmd run build` genera `frontend/dist`; para desplegar, configura HTTPS, el servidor de archivos y la redirección de rutas de React a index.html.
 
+Importar `backend/index.js` devuelve la aplicación Express sin abrir un servidor. El arranque explícito (`node backend/index.js` o los comandos npm) aplica migraciones, sincroniza membresías y programa su actualización cada minuto antes de quedar operativo. Al detenerlo con SIGINT/SIGTERM se limpian el temporizador, el listener y el pool de PostgreSQL. Las pruebas pueden importar la aplicación y gestionar su propio puerto temporal.
+
 ## Cuentas de prueba
 
 Después de `db:seed`, la contraseña corresponde a `SEED_TEST_PASSWORD` (por defecto `Temporal123!`). El acceso especial `123456` fue eliminado.
@@ -104,6 +106,20 @@ npm.cmd --prefix backend run test:browser
 Las pruebas de integración y navegador crean una base temporal `edf_test_*` y la eliminan al terminar. Necesitan un usuario PostgreSQL con permiso CREATEDB. No envían correos ni escriben en la base del gimnasio. Las pruebas de navegador usan Edge en Windows; en otros sistemas instala Chromium con Playwright, o define PLAYWRIGHT_EXECUTABLE_PATH.
 
 Cubren permisos por rol, creación y cambio inicial de contraseña, renovaciones y reintentos, morosidad, reportes, asignaciones independientes, seguimiento, mantenimiento, suspensión de usuarios y descargas reales de PDF/Excel.
+
+## Materiales del Entregable 2
+
+La [matriz y cierre de revisión](docs/ENTREGABLE_2.md) distinguen la auditoría histórica de las verificaciones finales. Consulta también la [arquitectura y decisiones](docs/ARQUITECTURA_Y_DECISIONES.md), el [guion de demostración](docs/GUION_DEMOSTRACION.md) y la [matriz CSV](docs/MATRIZ_ENTREGABLE_2.csv).
+
+Para preparar únicamente la demostración deportiva en una base ya instalada y migrada:
+
+```powershell
+npm.cmd run db:delivery-demo
+```
+
+Crea dos cuentas identificadas como DEMO, una rutina asignada y un seguimiento ficticio. No registra pagos ni membresías y no restablece contraseñas existentes. Repetirlo no duplica estos datos. El guion detalla las cuentas y la contraseña inicial configurada. Las cuentas DEMO aparecen en listados y recuentos.
+
+El administrador dispone de su propia pantalla en `/admin/pagos`; recepción mantiene `/recepcion/pagos`.
 
 ## Respaldar
 

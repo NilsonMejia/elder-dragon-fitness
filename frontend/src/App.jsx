@@ -8,6 +8,7 @@ import Login from './views/public/Login';
 
 // Vistas de Administrador
 import Dashboard from './views/admin/Dashboard';
+import AdminPagos from './views/admin/Pagos';
 import Usuarios from './views/admin/Usuarios';
 import Planes from './views/admin/Planes';
 import Reportes from './views/admin/Reportes';
@@ -34,6 +35,7 @@ function App() {
         <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
         <Route path="/admin/dashboard" element={<Dashboard />} />
         <Route path="/admin/usuarios" element={<Usuarios />} />
+        <Route path="/admin/pagos" element={<AdminPagos />} />
         <Route path="/admin/planes" element={<Planes />} />
         <Route path="/admin/reportes" element={<Reportes />} />
         <Route path="/admin/configuracion" element={<Configuracion />} />

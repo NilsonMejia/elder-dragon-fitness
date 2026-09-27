@@ -18,11 +18,14 @@ const pool = require('./config/db');
 const { syncMemberships } = require('./services/membershipService');
 let syncing;
 let lastSync = 0;
+function synchronizeMemberships() {
+  syncing ||= syncMemberships().then(() => { lastSync = Date.now(); }).finally(() => { syncing = null; });
+  return syncing;
+}
 app.use(async (req,res,next) => {
   try {
     if (Date.now()-lastSync>60000) {
-      syncing ||= syncMemberships().then(()=>{lastSync=Date.now();}).finally(()=>{syncing=null;});
-      await syncing;
+      await synchronizeMemberships();
     }
     next();
   } catch(error) { next(error); }
@@ -56,7 +59,41 @@ app.use((error,req,res,next)=>{
   const status=error.status || (['22P02','22007','22008','23514'].includes(error.code)?400:error.code==='23503'?409:500);
   res.status(status).json({message:status===500?'Error interno del servidor.':status===409?'El registro tiene relaciones o referencias inválidas.':error.status?error.message:'Datos inválidos.'});
 });
-app.listen(PORT, () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-});
+async function startServer() {
+  await require('./database/migrate')();
+  await synchronizeMemberships();
+  const server = await new Promise((resolve, reject) => {
+    const listener = app.listen(PORT, () => resolve(listener));
+    listener.once('error', reject);
+  });
+  const timer = setInterval(() => {
+    synchronizeMemberships().catch(error => console.error('Error sincronizando membresías:', error.message));
+  }, 60000);
+  timer.unref();
+  let stopping;
+  const stop = () => {
+    stopping ||= (async () => {
+      clearInterval(timer);
+      process.removeListener('SIGINT', shutdown);
+      process.removeListener('SIGTERM', shutdown);
+      await new Promise((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+      if (syncing) await syncing.catch(() => {});
+      await pool.end();
+    })();
+    return stopping;
+  };
+  const shutdown = () => { stop().catch(error => { console.error(error.message); process.exitCode = 1; }); };
+  process.once('SIGINT', shutdown);
+  process.once('SIGTERM', shutdown);
+  console.log(`Servidor corriendo en http://localhost:${server.address().port}`);
+  return { server, stop };
+}
+if (require.main === module) {
+  startServer().catch(async error => {
+    console.error('No se pudo iniciar el servidor:', error.message);
+    process.exitCode = 1;
+    await pool.end();
+  });
+}
 module.exports=app;
+module.exports.startServer = startServer;

@@ -246,6 +246,40 @@ test('both registration routes deliver credentials and preserve created accounts
   }
 });
 
+test('administrative user edits persist and revoke sessions only for security changes', async () => {
+  const email = 'edit-regression@example.invalid';
+  const roles = (await pool.query('SELECT id_rol, nombre_rol FROM roles')).rows;
+  const trainer = roles.find(r => r.nombre_rol === 'Entrenador').id_rol;
+  const reception = roles.find(r => r.nombre_rol === 'Recepcionista').id_rol;
+  const { rows: [user] } = await pool.query("INSERT INTO usuarios(id_rol,nombre,apellido,email,password_hash,estado,debe_cambiar_password) VALUES($1,'Editar','Prueba',$2,$3,'Activo',false) RETURNING id_usuario,token_version", [trainer, email, await bcrypt.hash(password,4)]);
+  const route = `/admin/usuarios/${user.id_usuario}`;
+  let token = await login(email);
+  const edited = await request(route,tokens.admin,'PUT',{nombre:'Editado'});
+  assert.equal(edited.status,200,JSON.stringify(edited.data));
+  assert.equal(edited.data.nombre,'Editado');
+  assert.equal((await pool.query('SELECT token_version FROM usuarios WHERE id_usuario=$1',[user.id_usuario])).rows[0].token_version,user.token_version);
+  assert.equal((await request('/deportivo/clientes',token)).status,200);
+  for (const id_rol of [999999,0,-1,'abc']) assert.equal((await request(route,tokens.admin,'PUT',{id_rol})).status,400);
+  assert.equal((await request(route,tokens.admin,'PUT',{id_rol:reception})).status,200);
+  assert.equal((await request('/recepcion/clientes',token)).status,401);
+  token = await login(email);
+  assert.equal((await request('/recepcion/clientes',token)).status,200);
+  assert.equal((await request(route,tokens.admin,'PUT',{password:'Changed-test-123!'})).status,200);
+  assert.equal((await request('/recepcion/clientes',token)).status,401);
+  const changedLogin = await request('/auth/login',null,'POST',{email,password:'Changed-test-123!'});
+  assert.equal(changedLogin.status,200);
+  assert.equal((await request(route,tokens.admin,'PUT',{estado:'Inactivo'})).status,200);
+  assert.equal((await request('/recepcion/clientes',changedLogin.data.token)).status,401);
+  assert.equal((await pool.query('SELECT token_version FROM usuarios WHERE id_usuario=$1',[user.id_usuario])).rows[0].token_version,user.token_version+3);
+});
+
+test('all five historical data checks are validated after repeatable migrations', async () => {
+  const names = ['planes_precio_positivo','planes_duracion_positiva','pagos_monto_positivo','membresias_fechas_validas','usuarios_estado_valido'];
+  const { rows } = await pool.query("SELECT conname,convalidated FROM pg_constraint WHERE connamespace='public'::regnamespace AND conname=ANY($1::text[])",[names]);
+  assert.equal(rows.length,5);
+  assert.ok(rows.every(row => row.convalidated));
+});
+
 test('invalid inputs are rejected and administrator password changes revoke old tokens',async()=>{
   assert.equal((await request('/admin/planes',tokens.admin,'POST',{nombre_plan:'Inválido',precio:-1,duracion_dias:30})).status,400);
   assert.equal((await request('/recepcion/clientes',tokens.reception,'POST',{nombre:'Test',apellido:'Test',email:'incorrecto'})).status,400);

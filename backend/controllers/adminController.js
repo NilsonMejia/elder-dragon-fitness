@@ -299,6 +299,7 @@ const createUsuario = async (req, res) => {
 };
 
 const updateUsuario = async (req, res) => {
+  if (req.body.id_rol !== undefined && (!Number.isSafeInteger(Number(req.body.id_rol)) || Number(req.body.id_rol) <= 0)) return res.status(400).json({ message: 'Rol inválido.' });
   if (Number(req.params.id)===req.user.userId && ((req.body.estado && req.body.estado !== 'Activo') || (req.body.rol && req.body.rol !== 'Administrador'))) return res.status(400).json({message:'No puedes quitarte el acceso administrativo.'});
   const { nombre, apellido, email, telefono, estado, id_rol, rol, password } = req.body;
   const client = await pool.connect();
@@ -317,6 +318,10 @@ const updateUsuario = async (req, res) => {
     }
 
     const roleId = await resolveRoleId(client, { id_rol, rol });
+    if ((id_rol !== undefined || rol !== undefined) && !roleId) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Rol inválido.' });
+    }
     if(Number(req.params.id)===req.user.userId && roleId && Number(roleId)!==current.rows[0].id_rol){await client.query('ROLLBACK');return res.status(400).json({message:'No puedes quitarte el rol administrativo.'});}
     const passwordHash = password
       ? await bcrypt.hash(password, SALT_ROUNDS)
@@ -324,8 +329,8 @@ const updateUsuario = async (req, res) => {
 
     const { rows } = await client.query(
       `UPDATE usuarios
-      SET id_rol = $1, nombre = $2, apellido = $3, email = $4,
-        password_hash = $5, telefono = $6, estado = $7, token_version = token_version + CASE WHEN id_rol IS DISTINCT FROM $1 OR password_hash IS DISTINCT FROM $5 OR estado IS DISTINCT FROM $7 THEN 1 ELSE 0 END
+      SET id_rol = $1::integer, nombre = $2, apellido = $3, email = $4,
+        password_hash = $5::varchar, telefono = $6, estado = $7::varchar, token_version = token_version + CASE WHEN id_rol IS DISTINCT FROM $1::integer OR password_hash IS DISTINCT FROM $5::varchar OR estado IS DISTINCT FROM $7::varchar THEN 1 ELSE 0 END
       WHERE id_usuario = $8
       RETURNING id_usuario, id_rol, nombre, apellido, email, telefono, estado`,
       [

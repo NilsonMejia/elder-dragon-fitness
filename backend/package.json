@@ -11,6 +11,7 @@
     "db:migrate": "node database/migrate.js",
     "db:init": "node database/init.js",
     "db:demo": "node database/init.js --demo",
+    "db:delivery-demo": "node scripts/prepare-delivery-demo.js",
     "test:browser": "node scripts/browser-check.js",
     "db:backup": "node scripts/backup.js",
     "email:check": "node scripts/check-email.js"
