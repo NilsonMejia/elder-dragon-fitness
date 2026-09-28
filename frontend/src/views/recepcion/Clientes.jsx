@@ -5,7 +5,6 @@ import '../../css/Recepcion.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
-// Íconos SVG limpios
 const IconUsers = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
@@ -30,31 +29,28 @@ const Clientes = () => {
   const [busqueda, setBusqueda] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [credential,setCredential]=useState('');
+  const [credential, setCredential] = useState('');
 
-  // Estados para el Modal de Nuevo Cliente
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
     apellido: '',
     email: '',
-    telefono: ''
+    telefono: '',
+    estado: 'Activo'
   });
 
-  // ==========================================
-  // VALIDACIÓN DE USUARIO Y SESIÓN
-  // ==========================================
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
   const storedUser = localStorage.getItem('usuario') || sessionStorage.getItem('usuario');
   
-  let userName = 'Marlon Jonathan'; // Fallback por defecto
+  let userName = 'Yasmidali Maricela'; 
   let userRole = 'Recepcionista';
   
   if (storedUser) {
     try {
       const parsedUser = JSON.parse(storedUser);
-      userName = parsedUser.nombre || 'Marlon Jonathan';
+      userName = parsedUser.nombre || 'Yasmidali Maricela';
       userRole = parsedUser.rol || parsedUser.nombre_rol || 'Recepcionista';
     } catch (e) {
       console.error('Error al leer el usuario:', e);
@@ -101,11 +97,20 @@ const Clientes = () => {
   }, [token]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchClientes();
   }, [fetchClientes]);
 
-  const remove=async(cliente)=>{if(!await confirm('¿Eliminar a '+cliente.nombre+'? Si tiene historial, cambia su estado a Inactivo.', { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true }))return;try{const r=await fetch(API_URL+'/recepcion/clientes/'+cliente.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!r.ok)throw new Error((await r.json()).message);await fetchClientes();}catch(e){setError(e.message);}};
+  const remove = async (cliente) => {
+    if(!await confirm(`¿Eliminar a ${cliente.nombre}? Si tiene historial, cambia su estado a Inactivo.`, { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true })) return;
+    try {
+      const r = await fetch(`${API_URL}/recepcion/clientes/${cliente.id_usuario}`,{ method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if(!r.ok) throw new Error((await r.json()).message);
+      await fetchClientes();
+    } catch(e) {
+      setError(e.message);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -127,7 +132,7 @@ const Clientes = () => {
       }
 
       setIsModalOpen(false);
-      setFormData({ nombre: '', apellido: '', email: '', telefono: '' });
+      setFormData({ nombre: '', apellido: '', email: '', telefono: '', estado: 'Activo' });
       fetchClientes();
       setCredential(result.temporaryPassword ? `${result.message} Contraseña temporal para ${formData.email}: ${result.temporaryPassword}` : result.message || 'Cliente guardado.');
     } catch (err) {
@@ -152,7 +157,6 @@ const Clientes = () => {
 
   return (
     <div className="recepcion-layout">
-      {/* SIDEBAR EXCLUSIVO DE RECEPCIÓN */}
       <aside className="recepcion-sidebar">
         <div className="sidebar-brand">
           <div className="brand-logo-wrap">
@@ -164,7 +168,8 @@ const Clientes = () => {
           </div>
         </div>
         
-        <nav className="sidebar-nav">
+        {/* Agregamos flex: 'none' para evitar que empuje lo de abajo */}
+        <nav className="sidebar-nav" style={{ flex: 'none', marginBottom: '30px' }}>
           <span style={{ color: '#8e9ba8', fontSize: '0.75rem', fontWeight: 'bold', margin: '10px 0 5px 10px', display: 'block', letterSpacing: '1px' }}>
             RECEPCIÓN
           </span>
@@ -176,13 +181,9 @@ const Clientes = () => {
           </Link>
         </nav>
 
-        {/* ==========================================
-            BLOQUE DE PERFIL INFERIOR (COMPACTO Y ELEVADO)
-            ========================================== */}
+        {/* BLOQUE DE PERFIL (PEGADO DE INMEDIATO AL MENÚ) */}
         <div style={{ 
-          marginTop: 'auto', 
-          marginBottom: '80vh', /* <-- Eleva el bloque bastante del fondo */
-          paddingTop: '15px', 
+          paddingTop: '25px', 
           display: 'flex', 
           flexDirection: 'column', 
           alignItems: 'center', 
@@ -190,32 +191,31 @@ const Clientes = () => {
         }}>
           
           <div style={{ 
-            width: '50px', height: '50px', borderRadius: '14px', 
+            width: '60px', height: '60px', borderRadius: '16px', 
             background: 'linear-gradient(135deg, #51ffaa, #00d4ff)', 
-            color: '#05080c', fontSize: '1.4rem', fontWeight: '900', 
+            color: '#05080c', fontSize: '1.8rem', fontWeight: '900', 
             display: 'flex', alignItems: 'center', justifyContent: 'center', 
-            marginBottom: '4px', /* <-- Espacio reducido */
-            boxShadow: '0 8px 15px rgba(0, 212, 255, 0.2)' 
+            marginBottom: '15px', boxShadow: '0 8px 20px rgba(0, 212, 255, 0.2)' 
           }}>
             {userInitial}
           </div>
           
-          <p style={{ fontSize: '1rem', fontWeight: '800', color: '#fff', margin: '0', textAlign: 'center', letterSpacing: '0.5px' }}>
+          <p style={{ fontSize: '1.1rem', fontWeight: '800', color: '#fff', margin: '0 0 4px 0', textAlign: 'center', letterSpacing: '0.5px' }}>
             {userName}
           </p>
-          <p style={{ fontSize: '0.8rem', color: '#8e9ba8', margin: '0 0 12px 0', /* <-- Espacio reducido */ textAlign: 'center' }}>
+          <p style={{ fontSize: '0.9rem', color: '#8e9ba8', margin: '0 0 25px 0', textAlign: 'center' }}>
             {userRole}
           </p>
 
           <button 
             onClick={handleLogout} 
             style={{ 
-              width: '100%', padding: '10px', /* <-- Botón más compacto */
+              width: '100%', padding: '12px', 
               background: 'rgba(255, 77, 77, 0.05)', 
               border: '1px solid rgba(255, 77, 77, 0.3)', 
-              color: '#ff6b6b', fontWeight: '700', borderRadius: '10px', 
+              color: '#ff6b6b', fontWeight: '700', borderRadius: '12px', 
               cursor: 'pointer', display: 'flex', alignItems: 'center', 
-              justifyContent: 'center', gap: '8px', transition: 'all 0.3s ease' 
+              justifyContent: 'center', gap: '10px', transition: 'all 0.3s ease' 
             }}
             onMouseEnter={(e) => { 
               e.currentTarget.style.background = 'rgba(255, 77, 77, 0.15)'; 
@@ -231,8 +231,10 @@ const Clientes = () => {
         </div>
       </aside>
 
-      {/* CONTENIDO PRINCIPAL */}
-      <main className="recepcion-content"><Notice message={error} onClose={() => setError('')} /><Notice message={credential} type="info" onClose={() => setCredential('')} />
+      <main className="recepcion-content">
+        <Notice message={error} onClose={() => setError('')} />
+        <Notice message={credential} type="info" onClose={() => setCredential('')} />
+        
         <div className="topbar-recep">
           <div className="search-box">
             <span className="search-icon">🔍</span>
@@ -250,7 +252,7 @@ const Clientes = () => {
             <h1>Directorio de Clientes</h1>
             <p>Gestiona expedientes digitales y verifica el estado de las membresías.</p>
           </div>
-          <button className="btn-recep-primary" onClick={() => {setFormData({nombre:'',apellido:'',email:'',telefono:'',estado:'Activo'});setIsModalOpen(true);}}>
+          <button className="btn-recep-primary" onClick={() => { setFormData({nombre:'',apellido:'',email:'',telefono:'',estado:'Activo'}); setIsModalOpen(true); }}>
             + Nuevo Cliente
           </button>
         </header>
@@ -264,32 +266,41 @@ const Clientes = () => {
                 <th>Teléfono</th>
                 <th>Plan Actual</th>
                 <th>Próximo Corte</th>
-                <th>Estado</th><th>Acciones</th>
+                <th>Estado</th>
+                <th style={{ textAlign: 'right' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {loading && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>Cargando clientes...</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#00ff88' }}>Cargando clientes...</td>
                 </tr>
               )}
               {!loading && !error && clientesFiltrados.map(cliente => (
                 <tr key={cliente.id_usuario}>
                   <td style={{ color: '#8e9ba8' }}>{`ED-${String(cliente.id_usuario).padStart(3, '0')}`}</td>
                   <td style={{ fontWeight: '700' }}>{`${cliente.nombre} ${cliente.apellido}`}</td>
-                  <td>{cliente.telefono}</td>
-                  <td style={{ color: '#00d4ff' }}>{cliente.nombre_plan || 'Sin plan'}</td>
+                  <td>{cliente.telefono || '-'}</td>
+                  <td style={{ color: '#00d4ff', fontWeight: '600' }}>{cliente.nombre_plan || 'Sin plan'}</td>
                   <td>{formatDate(cliente.fecha_fin)}</td>
                   <td>
                     <span className={`badge-estado ${(cliente.estado || '').toLowerCase()}`}>
                       {(cliente.estado || 'Sin estado').toUpperCase()}
                     </span>
-                  </td><td><button className="btn-edit" onClick={()=>{setFormData({...cliente,telefono:cliente.telefono || ''});setIsModalOpen(true);}}>Editar</button><button className="btn-edit" onClick={()=>remove(cliente)}>Eliminar</button></td>
+                  </td>
+                  <td style={{ textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <button className="btn-outline" onClick={() => { setFormData({...cliente, telefono: cliente.telefono || ''}); setIsModalOpen(true); }}>
+                      Editar
+                    </button>
+                    <button className="btn-outline" style={{ color: '#ff4d4d', borderColor: 'rgba(255, 77, 77, 0.3)' }} onClick={() => remove(cliente)}>
+                      Eliminar
+                    </button>
+                  </td>
                 </tr>
               ))}
               {!loading && !error && clientesFiltrados.length === 0 && (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: 'center', padding: '20px' }}>No se encontraron clientes.</td>
+                  <td colSpan="7" style={{ textAlign: 'center', padding: '30px', color: '#8e9ba8' }}>No se encontraron clientes que coincidan con la búsqueda.</td>
                 </tr>
               )}
             </tbody>
@@ -297,61 +308,105 @@ const Clientes = () => {
         </div>
       </main>
 
-      {/* ==========================================
-          MODAL DE CREAR CLIENTE
-          ========================================== */}
       {isModalOpen && (
         <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(5px)',
+          position: 'fixed', inset: 0, background: 'rgba(3, 6, 10, 0.9)', backdropFilter: 'blur(8px)',
           display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
         }}>
-          <div className="panel-recep" style={{ width: '100%', maxWidth: '500px', padding: '30px', background: '#0b1626' }}>
-            <h2 style={{ marginBottom: '20px', color: '#fff' }}>{formData.id_usuario?'Editar cliente':'Registrar nuevo cliente'}</h2>
+          <div style={{ 
+            width: '100%', maxWidth: '560px', padding: '40px', 
+            background: '#0e1520', border: '1px solid rgba(255, 255, 255, 0.05)', 
+            borderRadius: '20px', boxShadow: '0 30px 60px rgba(0,0,0,0.6)' 
+          }}>
+            <h2 style={{ marginBottom: '30px', color: '#fff', fontSize: '1.4rem', textAlign: 'center', fontWeight: '700' }}>
+              {formData.id_usuario ? 'Editar cliente' : 'Registrar nuevo cliente'}
+            </h2>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-              <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-nombre">Nombre</label>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ color: '#8e9ba8', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>NOMBRE</label>
                 <input 
-                  type="text" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  id="client-nombre" value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})} 
+                  type="text" required 
+                  style={{ width: '100%', padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: '#05080c', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s' }}
+                  value={formData.nombre}
+                  onChange={(e) => setFormData({...formData, nombre: e.target.value})}
+                  onFocus={(e) => e.target.style.borderColor = '#6ee7b7'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.06)'}
                 />
               </div>
               
-              <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-apellido">Apellido</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ color: '#8e9ba8', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>APELLIDO</label>
                 <input 
-                  type="text" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  id="client-apellido" value={formData.apellido}
+                  type="text" required 
+                  style={{ width: '100%', padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: '#05080c', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s' }}
+                  value={formData.apellido}
                   onChange={(e) => setFormData({...formData, apellido: e.target.value})} 
+                  onFocus={(e) => e.target.style.borderColor = '#6ee7b7'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.06)'}
                 />
               </div>
 
-              <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-email">Correo Electrónico</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ color: '#8e9ba8', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>CORREO ELECTRÓNICO</label>
                 <input 
-                  type="email" required style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  id="client-email" value={formData.email}
+                  type="email" required 
+                  style={{ width: '100%', padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: '#05080c', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s' }}
+                  value={formData.email}
                   onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                  onFocus={(e) => e.target.style.borderColor = '#6ee7b7'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.06)'}
                 />
               </div>
 
-              <div className="input-group">
-                <label style={{ color: '#8e9ba8', fontSize: '0.85rem' }} htmlFor="client-telefono">Teléfono</label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <label style={{ color: '#8e9ba8', fontSize: '0.8rem', fontWeight: '700', letterSpacing: '1.5px', textTransform: 'uppercase' }}>TELÉFONO</label>
                 <input 
-                  type="text" style={{ width: '100%', padding: '10px', borderRadius: '6px', border: '1px solid #1f2d3d', background: '#07111f', color: '#fff' }}
-                  id="client-telefono" value={formData.telefono}
+                  type="text" 
+                  style={{ width: '100%', padding: '14px 18px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.06)', background: '#05080c', color: '#fff', fontSize: '1rem', outline: 'none', transition: 'border-color 0.3s' }}
+                  value={formData.telefono}
                   onChange={(e) => setFormData({...formData, telefono: e.target.value})} 
+                  onFocus={(e) => e.target.style.borderColor = '#6ee7b7'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255,255,255,0.06)'}
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button type="button" onClick={() => setIsModalOpen(false)} style={{ flex: 1, padding: '10px', background: 'transparent', border: '1px solid #1f2d3d', color: '#8e9ba8', borderRadius: '6px', cursor: 'pointer' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => setIsModalOpen(false)} 
+                  style={{ padding: '12px 24px', background: 'transparent', border: '1px solid rgba(255,255,255,0.1)', color: '#8e9ba8', borderRadius: '10px', cursor: 'pointer', fontWeight: '600', fontSize: '0.95rem', transition: 'all 0.3s' }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = '#8e9ba8'}
+                >
                   Cancelar
                 </button>
-                <label>Estado<select value={formData.estado||'Activo'} onChange={e=>setFormData({...formData,estado:e.target.value})}><option>Activo</option><option>Inactivo</option><option>Moroso</option></select></label><button type="submit" disabled={isSubmitting} style={{ flex: 1, padding: '10px', background: '#38d996', border: 'none', color: '#07111f', fontWeight: 'bold', borderRadius: '6px', cursor: 'pointer' }}>
-                  {isSubmitting ? 'Guardando...' : 'Guardar Cliente'}
-                </button>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ color: '#f5f7fb', fontSize: '0.95rem', fontWeight: '600' }}>Estado</label>
+                    <select 
+                      value={formData.estado || 'Activo'} 
+                      onChange={e => setFormData({...formData, estado: e.target.value})}
+                      style={{ background: '#05080c', color: '#fff', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 14px', borderRadius: '8px', outline: 'none', cursor: 'pointer', fontSize: '0.95rem' }}
+                    >
+                      <option value="Activo">Activo</option>
+                      <option value="Inactivo">Inactivo</option>
+                      <option value="Moroso">Moroso</option>
+                    </select>
+                  </div>
+
+                  <button 
+                    type="submit" 
+                    disabled={isSubmitting} 
+                    style={{ padding: '12px 24px', background: '#6ee7b7', border: 'none', color: '#000', fontWeight: '800', fontSize: '0.95rem', borderRadius: '10px', cursor: 'pointer', transition: 'transform 0.2s', opacity: isSubmitting ? 0.7 : 1 }}
+                    onMouseEnter={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(-2px)')}
+                    onMouseLeave={(e) => !isSubmitting && (e.currentTarget.style.transform = 'translateY(0)')}
+                  >
+                    {isSubmitting ? 'Guardando...' : 'Guardar'}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
