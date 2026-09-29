@@ -8,7 +8,7 @@ import Login from './views/public/Login';
 
 // Vistas de Administrador
 import Dashboard from './views/admin/Dashboard';
-import AdminPagos from './views/admin/Pagos';
+import AdminPagos from './views/admin/Pagos'; // <-- IMPORTACIÓN PARA ADMIN PAGOS
 import Usuarios from './views/admin/Usuarios';
 import Planes from './views/admin/Planes';
 import Reportes from './views/admin/Reportes';
@@ -19,7 +19,7 @@ import Rutinas from './views/admin/Rutinas';
 import Clientes from './views/recepcion/Clientes';
 import Pagos from './views/recepcion/Pagos';
 
-// Vistas de Cliente (NUEVAS)
+// Vistas de Cliente
 import MiPerfil from './views/cliente/MiPerfil';
 import MiRutina from './views/cliente/MiRutina';
 
@@ -31,30 +31,38 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
 
+        {/* ADMINISTRADOR */}
         <Route element={<ProtectedRoute roles={['Administrador']} />}>
-        <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-        <Route path="/admin/dashboard" element={<Dashboard />} />
-        <Route path="/admin/usuarios" element={<Usuarios />} />
-        <Route path="/admin/pagos" element={<AdminPagos />} />
-        <Route path="/admin/planes" element={<Planes />} />
-        <Route path="/admin/reportes" element={<Reportes />} />
-        <Route path="/admin/configuracion" element={<Configuracion />} />
-        <Route path="/admin/rutinas" element={<Rutinas />} />
-
-        <Route path="/admin/asignaciones" element={<Navigate to="/admin/rutinas" replace />} /></Route>
-<Route element={<ProtectedRoute roles={['Entrenador']} />}>
-<Route path="/entrenador" element={<Asignaciones />} />
-<Route path="/entrenador/catalogo" element={<Rutinas />} />
-</Route>
-<Route element={<ProtectedRoute roles={['Recepcionista']} />}>
-        <Route path="/recepcion/clientes" element={<Clientes />} />
-        <Route path="/recepcion/pagos" element={<Pagos />} />
-
-        </Route><Route element={<ProtectedRoute roles={['Cliente']} />}>
-        <Route path="/cliente/perfil" element={<MiPerfil />} />
-        <Route path="/cliente/rutina" element={<MiRutina />} />
-
+          <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+          <Route path="/admin/dashboard" element={<Dashboard />} />
+          <Route path="/admin/usuarios" element={<Usuarios />} />
+          <Route path="/admin/pagos" element={<AdminPagos />} /> {/* <-- RUTA DE PAGOS DEL ADMINISTRADOR */}
+          <Route path="/admin/planes" element={<Planes />} />
+          <Route path="/admin/reportes" element={<Reportes />} />
+          <Route path="/admin/configuracion" element={<Configuracion />} />
+          <Route path="/admin/rutinas" element={<Rutinas />} />
+          <Route path="/admin/asignaciones" element={<Navigate to="/admin/rutinas" replace />} />
         </Route>
+
+        {/* ENTRENADOR */}
+        <Route element={<ProtectedRoute roles={['Entrenador']} />}>
+          <Route path="/entrenador" element={<Asignaciones />} />
+          <Route path="/entrenador/catalogo" element={<Rutinas />} />
+        </Route>
+
+        {/* RECEPCIÓN */}
+        <Route element={<ProtectedRoute roles={['Recepcionista']} />}>
+          <Route path="/recepcion/clientes" element={<Clientes />} />
+          <Route path="/recepcion/pagos" element={<Pagos />} />
+        </Route>
+
+        {/* CLIENTE */}
+        <Route element={<ProtectedRoute roles={['Cliente']} />}>
+          <Route path="/cliente/perfil" element={<MiPerfil />} />
+          <Route path="/cliente/rutina" element={<MiRutina />} />
+        </Route>
+
+        {/* REDIRECCIÓN DE SEGURIDAD */}
         <Route path="/dashboard" element={<Navigate to="/admin/dashboard" replace />} />
       </Routes>
     </Router>

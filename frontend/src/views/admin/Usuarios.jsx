@@ -15,7 +15,7 @@ const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [credential,setCredential]=useState('');
+  const [credential, setCredential] = useState('');
 
   // Estados para el Modal de Crear/Editar
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,9 +33,75 @@ const Usuarios = () => {
     estado: 'Activo'
   });
 
+  // Estado para los mensajes de error de validación
+  const [formErrors, setFormErrors] = useState({});
+
   const token = localStorage.getItem('token') || sessionStorage.getItem('token');
 
-  // Envolver la petición en useCallback para poder llamarla al cargar y al guardar cambios
+  // ==========================================
+  // LÓGICA DE VALIDACIÓN
+  // ==========================================
+  const validateField = (name, value) => {
+    let errorMsg = '';
+    const val = value ? value.toString().trim() : '';
+
+    switch (name) {
+      case 'nombre':
+      case 'apellido':
+        if (!val) {
+          errorMsg = 'Este campo es obligatorio.';
+        } else if (!/^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s']{2,50}$/.test(val)) {
+          errorMsg = 'Solo se permiten letras (mínimo 2 caracteres).';
+        }
+        break;
+      case 'email':
+        if (!val) {
+          errorMsg = 'El correo es obligatorio.';
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+          errorMsg = 'Ingresa un formato de correo válido (ej: usuario@correo.com).';
+        }
+        break;
+      case 'telefono':
+        // El teléfono es opcional, pero si se escribe, debe tener formato válido
+        if (val && !/^[\d\s\-\+]{8,15}$/.test(val)) {
+          errorMsg = 'Formato inválido (solo números, guiones o +, entre 8 y 15 dígitos).';
+        }
+        break;
+      default:
+        break;
+    }
+
+    setFormErrors(prev => ({ ...prev, [name]: errorMsg }));
+    return errorMsg === ''; // Retorna true si es válido
+  };
+
+  const handleBlur = (e) => {
+    const { id, value } = e.target;
+    // Extraemos el nombre del campo a partir del ID (ej: "user-nombre" -> "nombre")
+    const fieldName = id.replace('user-', '');
+    validateField(fieldName, value);
+  };
+
+  const handleChange = (e, fieldName) => {
+    setFormData({ ...formData, [fieldName]: e.target.value });
+    // Limpia el error visualmente mientras el usuario corrige el texto
+    if (formErrors[fieldName]) {
+      setFormErrors(prev => ({ ...prev, [fieldName]: '' }));
+    }
+  };
+
+  const validateAll = () => {
+    const isNombreValid = validateField('nombre', formData.nombre);
+    const isApellidoValid = validateField('apellido', formData.apellido);
+    const isEmailValid = validateField('email', formData.email);
+    const isTelefonoValid = validateField('telefono', formData.telefono);
+
+    return isNombreValid && isApellidoValid && isEmailValid && isTelefonoValid;
+  };
+
+  // ==========================================
+  // FETCH Y API REST
+  // ==========================================
   const fetchUsuarios = useCallback(async () => {
     setLoading(true);
     try {
@@ -60,13 +126,9 @@ const Usuarios = () => {
       navigate('/login');
       return;
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- Loading and error state belong to this API request.
     fetchUsuarios();
   }, [token, navigate, fetchUsuarios]);
 
-  // ==========================================
-  // 1. FUNCIONALIDAD: EXPORTAR A CSV
-  // ==========================================
   const handleExport = () => {
     if (usuarios.length === 0) return;
     
@@ -91,12 +153,10 @@ const Usuarios = () => {
     link.click();
   };
 
-  // ==========================================
-  // 2. FUNCIONALIDAD: ABRIR MODALES
-  // ==========================================
   const openCreateModal = () => {
     setModalMode('crear');
     setFormData({ id_usuario: null, nombre: '', apellido: '', email: '', telefono: '', rol: 'Cliente', estado: 'Activo' });
+    setFormErrors({}); // Limpia errores previos
     setIsModalOpen(true);
   };
 
@@ -111,14 +171,19 @@ const Usuarios = () => {
       rol: usuario.nombre_rol,
       estado: usuario.estado
     });
+    setFormErrors({}); // Limpia errores previos
     setIsModalOpen(true);
   };
 
-  // ==========================================
-  // 3. FUNCIONALIDAD: GUARDAR EN BASE DE DATOS
-  // ==========================================
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // BLOQUEO: Si las validaciones fallan, no enviamos la petición
+    if (!validateAll()) {
+      notify('Revisa los campos en rojo antes de continuar.', 'error');
+      return;
+    }
+
     setIsSubmitting(true);
     setError('');
 
@@ -141,12 +206,13 @@ const Usuarios = () => {
 
       if (!response.ok) throw new Error(result.message || 'Error al guardar el usuario.');
 
-      // Si todo sale bien, cerramos el modal y refrescamos la tabla
       setIsModalOpen(false);
       fetchUsuarios();
       
       if (modalMode === 'crear') {
         setCredential(result.temporaryPassword ? `${result.message} Contraseña temporal para ${formData.email}: ${result.temporaryPassword}` : result.message);
+      } else {
+        notify('Usuario actualizado exitosamente.', 'success');
       }
     } catch (err) {
       console.error(err);
@@ -156,10 +222,18 @@ const Usuarios = () => {
     }
   };
 
-  const handleDelete=async(user)=>{
-    if(!await confirm('¿Eliminar a '+user.nombre+'? Si tiene historial, suspende su cuenta en Editar.', { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true }))return;
-    try{const response=await fetch(API_URL+'/admin/usuarios/'+user.id_usuario,{method:'DELETE',headers:{Authorization:'Bearer '+token}});if(!response.ok)throw new Error((await response.json()).message);await fetchUsuarios();}catch(e){setError(e.message);}
+  const handleDelete = async (user) => {
+    if(!await confirm(`¿Eliminar a ${user.nombre}? Si tiene historial, suspende su cuenta en Editar.`, { title: 'Confirmar cambio', confirmLabel: 'Confirmar', danger: true })) return;
+    try {
+      const response = await fetch(`${API_URL}/admin/usuarios/${user.id_usuario}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+      if(!response.ok) throw new Error((await response.json()).message);
+      await fetchUsuarios();
+      notify('Usuario eliminado.', 'success');
+    } catch(e) {
+      setError(e.message);
+    }
   };
+
   return (
     <AdminPageShell>
       <Notice message={credential} type="info" onClose={() => setCredential('')} />
@@ -212,7 +286,8 @@ const Usuarios = () => {
                       </span>
                     </td>
                     <td>
-                      <button className="btn-edit" onClick={() => openEditModal(usuario)}>✏️ Editar</button> <button className="btn-edit" onClick={()=>handleDelete(usuario)}>Eliminar</button>
+                      <button className="btn-edit" onClick={() => openEditModal(usuario)}>✏️ Editar</button> 
+                      <button className="btn-edit" style={{ marginLeft: '10px', color: '#ff4d4d', borderColor: 'rgba(255, 77, 77, 0.3)' }} onClick={() => handleDelete(usuario)}>🗑️ Eliminar</button>
                     </td>
                   </tr>
                 ))
@@ -241,49 +316,71 @@ const Usuarios = () => {
               {modalMode === 'crear' ? '✨ Nuevo Usuario' : '✏️ Editar Usuario'}
             </h2>
             
-            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }} noValidate>
+              
               <div className="input-group">
-                <label htmlFor="user-nombre">Nombre</label>
+                <label htmlFor="user-nombre">Nombre <span style={{ color: '#ff4d4d' }}>*</span></label>
                 <input 
-                  type="text" className="admin-input" required 
-                  id="user-nombre" value={formData.nombre}
-                  onChange={(e) => setFormData({...formData, nombre: e.target.value})} 
+                  type="text" 
+                  className="admin-input" 
+                  id="user-nombre" 
+                  value={formData.nombre}
+                  onChange={(e) => handleChange(e, 'nombre')} 
+                  onBlur={handleBlur}
+                  style={{ borderColor: formErrors.nombre ? '#ff4d4d' : undefined }}
                 />
+                {formErrors.nombre && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '4px' }}>{formErrors.nombre}</span>}
               </div>
               
               <div className="input-group">
-                <label htmlFor="user-apellido">Apellido</label>
+                <label htmlFor="user-apellido">Apellido <span style={{ color: '#ff4d4d' }}>*</span></label>
                 <input 
-                  type="text" className="admin-input" required 
-                  id="user-apellido" value={formData.apellido}
-                  onChange={(e) => setFormData({...formData, apellido: e.target.value})} 
+                  type="text" 
+                  className="admin-input" 
+                  id="user-apellido" 
+                  value={formData.apellido}
+                  onChange={(e) => handleChange(e, 'apellido')}
+                  onBlur={handleBlur}
+                  style={{ borderColor: formErrors.apellido ? '#ff4d4d' : undefined }}
                 />
+                {formErrors.apellido && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '4px' }}>{formErrors.apellido}</span>}
               </div>
 
               <div className="input-group">
-                <label htmlFor="user-email">Correo Electrónico</label>
+                <label htmlFor="user-email">Correo Electrónico <span style={{ color: '#ff4d4d' }}>*</span></label>
                 <input 
-                  type="email" className="admin-input" required 
-                  id="user-email" value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})} 
+                  type="email" 
+                  className="admin-input" 
+                  id="user-email" 
+                  value={formData.email}
+                  onChange={(e) => handleChange(e, 'email')}
+                  onBlur={handleBlur}
+                  style={{ borderColor: formErrors.email ? '#ff4d4d' : undefined }}
                 />
+                {formErrors.email && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '4px' }}>{formErrors.email}</span>}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
                 <div className="input-group">
                   <label htmlFor="user-telefono">Teléfono</label>
                   <input 
-                    type="text" className="admin-input" 
-                    id="user-telefono" value={formData.telefono}
-                    onChange={(e) => setFormData({...formData, telefono: e.target.value})} 
+                    type="text" 
+                    className="admin-input" 
+                    id="user-telefono" 
+                    value={formData.telefono}
+                    onChange={(e) => handleChange(e, 'telefono')}
+                    onBlur={handleBlur}
+                    style={{ borderColor: formErrors.telefono ? '#ff4d4d' : undefined }}
                   />
+                  {formErrors.telefono && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '4px' }}>{formErrors.telefono}</span>}
                 </div>
 
                 <div className="input-group">
                   <label htmlFor="user-rol">Rol</label>
                   <select 
                     className="admin-input" 
-                    id="user-rol" value={formData.rol}
+                    id="user-rol" 
+                    value={formData.rol}
                     onChange={(e) => setFormData({...formData, rol: e.target.value})}
                   >
                     <option value="Cliente">Cliente</option>
@@ -310,7 +407,7 @@ const Usuarios = () => {
               )}
 
               <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => setIsModalOpen(false)}>
+                <button type="button" className="btn-outline" style={{ flex: 1 }} onClick={() => { setIsModalOpen(false); setFormErrors({}); }}>
                   Cancelar
                 </button>
                 <button type="submit" className="btn-gradient" style={{ flex: 1 }} disabled={isSubmitting}>
