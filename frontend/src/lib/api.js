@@ -15,7 +15,7 @@ export async function api(path, options = {}) {
   const data = response.status === 204 ? null : await response.json();
   if (!response.ok) {
     if (response.status === 401) { logout(); window.location.assign('/login'); }
-    throw new Error(data?.message || 'No se pudo completar la operación.');
+    throw new Error(data?.message || data?.error || 'No se pudo completar la operación.');
   }
   return data;
 }

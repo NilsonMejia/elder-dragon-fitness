@@ -3,7 +3,12 @@ import { createContext, useCallback, useContext, useEffect, useId, useRef, useSt
 import { createPortal } from 'react-dom';
 import '../css/notifications.css';
 const NotificationContext = createContext(null);
-const titles = { error: 'No se pudo completar', success: 'Listo', info: 'Información' };
+const titles = { 
+  error: 'Error', 
+  warning: 'Atención', 
+  success: 'Éxito', 
+  info: 'Información' 
+};
 
 export function MiniDialog({ open, title, children, onClose }) {
   const dialog = useRef(null);
@@ -29,30 +34,62 @@ export function NotificationProvider({ children }) {
   const [question, setQuestion] = useState(null);
   const pending = useRef(null);
   const sequence = useRef(0);
-  const dismiss = useCallback(id => setMessages(items => items.filter(item => item.id !== id)), []);
+  const timers = useRef(new Map());
+
+  const dismiss = useCallback(id => {
+    if (timers.current.has(id)) {
+      clearTimeout(timers.current.get(id));
+      timers.current.delete(id);
+    }
+    setMessages(items => items.filter(item => item.id !== id));
+  }, []);
+
   const notify = useCallback((message, type = 'info', onClose) => {
     const id = ++sequence.current;
     setMessages(items => [...items, { id, message, type, onClose }]);
+    
+    // Auto-descartar después de 4.5 segundos
+    const timerId = setTimeout(() => {
+      dismiss(id);
+      onClose?.();
+    }, 4500);
+    timers.current.set(id, timerId);
+
     return id;
-  }, []);
+  }, [dismiss]);
+
   const confirm = useCallback((message, options = {}) => new Promise(resolve => {
     pending.current?.(false);
     pending.current = resolve;
     setQuestion({ message, ...options });
   }), []);
+
   const answer = useCallback(value => {
     pending.current?.(value);
     pending.current = null;
     setQuestion(null);
   }, []);
-  useEffect(() => () => { pending.current?.(false); }, []);
+
+  useEffect(() => () => { 
+    pending.current?.(false); 
+    timers.current.forEach(t => clearTimeout(t));
+  }, []);
+
   return <NotificationContext.Provider value={{ notify, dismiss, confirm }}>
     {children}
     {createPortal(<section className="notification-stack" aria-label="Notificaciones">
-      {messages.map(item => <article key={item.id} className={`notice-card notice-${item.type}`} role={item.type === 'error' ? 'alert' : 'status'}>
-        <div><strong>{titles[item.type] || titles.info}</strong><p>{item.message}</p></div>
-        <button type="button" className="notice-close" aria-label="Cerrar notificación" onClick={() => { dismiss(item.id); item.onClose?.(); }}>×</button>
-      </article>)}
+      {messages.map(item => (
+        <article key={item.id} className={`notice-card notice-${item.type}`} role={item.type === 'error' ? 'alert' : 'status'}>
+          <div className="notice-card-content">
+            <div className="notice-card-header">
+              <span className={`notice-badge-dot notice-dot-${item.type}`} aria-hidden="true"></span>
+              <strong>{titles[item.type] || titles.info}</strong>
+            </div>
+            <p>{item.message}</p>
+          </div>
+          <button type="button" className="notice-close" aria-label="Cerrar notificación" onClick={() => { dismiss(item.id); item.onClose?.(); }}>×</button>
+        </article>
+      ))}
     </section>, document.body)}
     <MiniDialog open={!!question} title={question?.title || 'Confirmar acción'} onClose={() => answer(false)}>
       <p className="mini-dialog-description">{question?.message}</p>

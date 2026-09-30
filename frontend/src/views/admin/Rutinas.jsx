@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import WorkspaceShell from '../../components/WorkspaceShell';
 import ExerciseEditor from '../../components/ExerciseEditor';
 import { Notice, useNotifications } from '../../components/Notifications';
+import { sessionUser } from '../../lib/api';
 import '../../css/admin.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
@@ -27,6 +28,7 @@ const GRUPOS = ['Pecho', 'Espalda', 'Pierna', 'Hombro', 'Bíceps', 'Tríceps', '
 const NIVELES = ['Principiante', 'Intermedio', 'Avanzado'];
 
 const Rutinas = () => {
+  const user = sessionUser();
   const { notify, confirm } = useNotifications();
   const [rutinas, setRutinas] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -35,6 +37,7 @@ const Rutinas = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [rutinaEditando, setRutinaEditando] = useState(null);
   const [formErrors, setFormErrors] = useState({});
+  const [exerciseErrors, setExerciseErrors] = useState([]);
   const [activeTab, setActiveTab] = useState('info');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -87,24 +90,96 @@ const Rutinas = () => {
   // ==========================================
   const validarFormulario = () => {
     const errores = {};
-    if (!rutinaEditando.nombre.trim()) errores.nombre = 'El nombre es obligatorio.';
-    if (!rutinaEditando.duracion || rutinaEditando.duracion <= 0) errores.duracion = 'Requerido.';
-    if (!rutinaEditando.calorias || rutinaEditando.calorias <= 0) errores.calorias = 'Requerido.';
-    
-    let errorEjercicios = false;
-    if (!rutinaEditando.detalles || rutinaEditando.detalles.length === 0) {
-      errores.general = 'Debes agregar al menos un ejercicio.';
-      errorEjercicios = true;
-    } else {
-      rutinaEditando.detalles.forEach((ej) => {
-        if (!ej.texto || !ej.texto.trim()) errorEjercicios = true;
-      });
+    const exErrors = [];
+
+    // Validar nombre
+    const nombre = (rutinaEditando.nombre || '').trim();
+    if (!nombre) {
+      errores.nombre = 'El nombre de la rutina es obligatorio.';
+    } else if (nombre.length > 100) {
+      errores.nombre = 'El nombre no puede superar los 100 caracteres.';
     }
-    
-    if (errorEjercicios) errores.ejercicios = 'Asegúrate de configurar correctamente los ejercicios.';
-    
+
+    // Validar duracion
+    const duracion = Number(rutinaEditando.duracion);
+    if (!rutinaEditando.duracion || isNaN(duracion) || !Number.isInteger(duracion) || duracion <= 0) {
+      errores.duracion = 'Ingresa una duración válida en minutos (> 0).';
+    } else if (duracion > 480) {
+      errores.duracion = 'La duración máxima permitida es de 480 minutos.';
+    }
+
+    // Validar calorias
+    const calorias = Number(rutinaEditando.calorias);
+    if (!rutinaEditando.calorias || isNaN(calorias) || !Number.isInteger(calorias) || calorias <= 0) {
+      errores.calorias = 'Ingresa una estimación calórica válida (> 0).';
+    } else if (calorias > 5000) {
+      errores.calorias = 'Las calorías estimadas no pueden superar 5000 kcal.';
+    }
+
+    // Validar mediaUrl opcional
+    if (rutinaEditando.mediaUrl && rutinaEditando.mediaUrl.trim().length > 1000) {
+      errores.mediaUrl = 'La URL es demasiado extensa (máx. 1000 caracteres).';
+    }
+
+    // Validar ejercicios
+    const detalles = rutinaEditando.detalles;
+    if (!detalles || !Array.isArray(detalles) || detalles.length === 0) {
+      errores.general = 'Debes agregar al menos un ejercicio a la plantilla.';
+      errores.ejercicios = 'Debes agregar al menos un ejercicio.';
+    } else if (detalles.length > 100) {
+      errores.ejercicios = 'No puedes agregar más de 100 ejercicios.';
+    } else {
+      let hasExError = false;
+      detalles.forEach((ej, index) => {
+        const itemErr = {};
+        const texto = (ej.texto || '').trim();
+        if (!texto) {
+          itemErr.texto = 'Nombre del ejercicio requerido.';
+          hasExError = true;
+        } else if (texto.length > 150) {
+          itemErr.texto = 'Máximo 150 caracteres.';
+          hasExError = true;
+        }
+
+        const series = String(ej.series ?? '').trim();
+        if (!series) {
+          itemErr.series = 'Series requeridas.';
+          hasExError = true;
+        } else if (series.length > 50) {
+          itemErr.series = 'Máx. 50 caracteres.';
+          hasExError = true;
+        }
+
+        const reps = String(ej.repeticiones ?? '').trim();
+        if (!reps) {
+          itemErr.repeticiones = 'Reps requeridas.';
+          hasExError = true;
+        } else if (reps.length > 50) {
+          itemErr.repeticiones = 'Máx. 50 caracteres.';
+          hasExError = true;
+        }
+
+        const descanso = Number(ej.descanso_segundos);
+        if (ej.descanso_segundos === '' || isNaN(descanso) || !Number.isInteger(descanso) || descanso < 0 || descanso > 3600) {
+          itemErr.descanso = 'Entre 0 y 3600 s.';
+          hasExError = true;
+        }
+
+        exErrors[index] = Object.keys(itemErr).length ? itemErr : null;
+      });
+
+      if (hasExError) {
+        errores.ejercicios = 'Revisa los campos de cada ejercicio marcado en rojo.';
+      }
+    }
+
     setFormErrors(errores);
-    return Object.keys(errores).length === 0;
+    setExerciseErrors(exErrors);
+    return {
+      isValid: Object.keys(errores).length === 0,
+      errors: errores,
+      exErrors
+    };
   };
 
   // ==========================================
@@ -112,11 +187,18 @@ const Rutinas = () => {
   // ==========================================
   const handleCrear = () => {
     setRutinaEditando({
-      id: null, nombre: '', grupo: 'Pecho', nivel: 'Principiante', duracion: 45, calorias: 300,
-      tipoMedia: 'imagen', mediaUrl: '', 
+      id: null,
+      nombre: '',
+      grupo: 'Pecho',
+      nivel: 'Principiante',
+      duracion: 45,
+      calorias: 300,
+      tipoMedia: 'imagen',
+      mediaUrl: '',
       detalles: [{ id: Date.now(), texto: '', series: '3', repeticiones: '10', peso: 'Libre', descanso_segundos: '60' }],
     });
     setFormErrors({});
+    setExerciseErrors([]);
     setActiveTab('info');
     setModalOpen(true);
   };
@@ -124,6 +206,7 @@ const Rutinas = () => {
   const handleEditar = (rutina) => {
     setRutinaEditando(JSON.parse(JSON.stringify(rutina))); // Deep copy
     setFormErrors({});
+    setExerciseErrors([]);
     setActiveTab('info');
     setModalOpen(true);
   };
@@ -146,13 +229,19 @@ const Rutinas = () => {
   const handleGuardar = async (e) => {
     e.preventDefault();
     
-    if (!validarFormulario()) {
-      if (formErrors.ejercicios) {
-        setActiveTab('ejercicios');
-        notify('Por favor completa los campos de ejercicios.', 'error');
-      } else if (formErrors.nombre || formErrors.duracion) {
+    const { isValid, errors: validationErrors } = validarFormulario();
+    if (!isValid) {
+      if (validationErrors.nombre || validationErrors.duracion || validationErrors.calorias) {
         setActiveTab('info');
-        notify('Por favor corrige los errores en Datos Base.', 'error');
+        notify('Por favor corrige los datos base marcados en rojo.', 'warning');
+      } else if (validationErrors.ejercicios) {
+        setActiveTab('ejercicios');
+        notify('Por favor completa los ejercicios requeridos marcados en rojo.', 'warning');
+      } else if (validationErrors.mediaUrl) {
+        setActiveTab('media');
+        notify(validationErrors.mediaUrl, 'warning');
+      } else {
+        notify('Por favor completa los campos obligatorios.', 'warning');
       }
       return;
     }
@@ -161,17 +250,37 @@ const Rutinas = () => {
     const isNew = !rutinaEditando.id;
     const endpoint = isNew ? `${API_URL}/deportivo/rutinas` : `${API_URL}/deportivo/rutinas/${rutinaEditando.id}`;
     const method = isNew ? 'POST' : 'PUT';
+
+    const payload = {
+      nombre: rutinaEditando.nombre.trim(),
+      grupo: rutinaEditando.grupo,
+      nivel: rutinaEditando.nivel,
+      duracion: parseInt(rutinaEditando.duracion, 10),
+      calorias: parseInt(rutinaEditando.calorias, 10),
+      tipoMedia: rutinaEditando.tipoMedia || 'imagen',
+      mediaUrl: (rutinaEditando.mediaUrl || '').trim(),
+      detalles: (rutinaEditando.detalles || []).map((d) => ({
+        texto: (d.texto || '').trim(),
+        series: String(d.series ?? '').trim(),
+        repeticiones: String(d.repeticiones ?? '').trim(),
+        peso: String(d.peso ?? 'Libre').trim(),
+        descanso_segundos: Number(d.descanso_segundos ?? 60)
+      }))
+    };
     
     try {
       const response = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify(rutinaEditando)
+        body: JSON.stringify(payload)
       });
-      if (!response.ok) throw new Error((await response.json()).message || 'Error al guardar la rutina.');
+      if (!response.ok) {
+        const errJson = await response.json().catch(() => ({}));
+        throw new Error(errJson.message || 'Error al guardar la rutina.');
+      }
       
       setModalOpen(false);
-      notify('Plantilla guardada exitosamente.', 'success');
+      notify(isNew ? 'Plantilla creada exitosamente.' : 'Plantilla actualizada exitosamente.', 'success');
       fetchRutinas();
     } catch (err) {
       notify(err.message, 'error');
@@ -182,10 +291,14 @@ const Rutinas = () => {
 
   return (
     <WorkspaceShell>
-      <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px' }}>
+      <header className="content-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '32px', flexWrap: 'wrap', gap: '16px' }}>
         <div>
           <h1 style={{ fontSize: '1.9rem', fontWeight: 800, margin: '0 0 6px 0' }}>Catálogo de Rutinas</h1>
-          <p style={{ color: 'var(--admin-muted)', margin: 0 }}>Administra las plantillas base para tus entrenadores.</p>
+          <p style={{ color: 'var(--admin-muted)', margin: 0 }}>
+            {user?.rol === 'Entrenador' 
+              ? 'Explora y administra las plantillas base para asignar a tus atletas.' 
+              : 'Administra las plantillas base para tus entrenadores.'}
+          </p>
         </div>
         <button className="admin-btn-primary" onClick={handleCrear}>
           + Crear Rutina Base
@@ -326,60 +439,146 @@ const Rutinas = () => {
             </div>
 
             <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', marginBottom: '30px' }}>
-              {[{ id: 'info', label: 'Datos Base' }, { id: 'media', label: 'Multimedia' }, { id: 'ejercicios', label: 'Ejercicios' }].map((tab) => (
+              {[
+                { id: 'info', label: 'Datos Base', hasError: !!(formErrors.nombre || formErrors.duracion || formErrors.calorias) },
+                { id: 'media', label: 'Multimedia', hasError: !!formErrors.mediaUrl },
+                { id: 'ejercicios', label: 'Ejercicios', hasError: !!(formErrors.ejercicios || exerciseErrors.some(Boolean)) }
+              ].map((tab) => (
                 <button
-                  key={tab.id} type="button"
+                  key={tab.id}
+                  type="button"
                   style={{ 
-                    background: 'none', 
-                    border: activeTab === tab.id ? '1px solid #00ff88' : '1px solid transparent', 
+                    background: activeTab === tab.id ? 'rgba(0, 255, 136, 0.1)' : 'rgba(255, 255, 255, 0.03)', 
+                    border: activeTab === tab.id ? '1px solid #00ff88' : tab.hasError ? '1px solid #ff4d4d' : '1px solid rgba(255, 255, 255, 0.1)', 
                     padding: '10px 20px', 
-                    color: activeTab === tab.id ? '#00ff88' : '#8e9ba8', 
+                    color: activeTab === tab.id ? '#00ff88' : tab.hasError ? '#ff6b6b' : '#8e9ba8', 
                     fontWeight: 'bold', 
-                    borderRadius: '8px',
+                    borderRadius: '8px', 
                     cursor: 'pointer', 
-                    transition: 'all 0.2s' 
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px'
                   }}
                   onClick={() => setActiveTab(tab.id)}
                 >
-                  {tab.label}
+                  <span>{tab.label}</span>
+                  {tab.hasError && (
+                    <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff4d4d' }} title="Tiene campos con errores" />
+                  )}
                 </button>
               ))}
             </div>
 
-            <form onSubmit={handleGuardar}>
+            <form onSubmit={handleGuardar} noValidate>
               {activeTab === 'info' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                  {formErrors.general && <div style={{ color: '#ff4d4d', fontSize: '0.9rem', textAlign: 'center' }}>{formErrors.general}</div>}
+                  {formErrors.general && (
+                    <div style={{ color: '#ff4d4d', fontSize: '0.88rem', textAlign: 'center', background: 'rgba(255,77,77,0.1)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,77,77,0.3)' }}>
+                      {formErrors.general}
+                    </div>
+                  )}
                   <div>
-                    <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Nombre de la rutina</label>
-                    <input type="text" value={rutinaEditando.nombre} onChange={(e) => {
-                      setRutinaEditando({ ...rutinaEditando, nombre: e.target.value });
-                      if (formErrors.nombre) setFormErrors({...formErrors, nombre: null});
-                    }} style={{ width: '100%', background: '#05080c', border: formErrors.nombre ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff' }} />
+                    <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                      Nombre de la rutina <span style={{ color: '#ff4d4d' }}>*</span>
+                    </label>
+                    <input 
+                      type="text" 
+                      maxLength={100}
+                      placeholder="Ej. Hipertrofia Tren Superior"
+                      value={rutinaEditando.nombre} 
+                      onChange={(e) => {
+                        setRutinaEditando({ ...rutinaEditando, nombre: e.target.value });
+                        if (formErrors.nombre) setFormErrors({ ...formErrors, nombre: null });
+                      }} 
+                      style={{ 
+                        width: '100%', 
+                        background: '#05080c', 
+                        border: formErrors.nombre ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', 
+                        padding: '12px 16px', 
+                        borderRadius: '10px', 
+                        color: '#fff',
+                        boxSizing: 'border-box'
+                      }} 
+                    />
                     {formErrors.nombre && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '5px', display: 'block' }}>{formErrors.nombre}</span>}
                   </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                     <div>
                       <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Grupo muscular</label>
-                      <select value={rutinaEditando.grupo} onChange={(e) => setRutinaEditando({ ...rutinaEditando, grupo: e.target.value })} style={{ width: '100%', background: '#05080c', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff' }}>
+                      <select 
+                        value={rutinaEditando.grupo} 
+                        onChange={(e) => setRutinaEditando({ ...rutinaEditando, grupo: e.target.value })} 
+                        style={{ width: '100%', background: '#05080c', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff', boxSizing: 'border-box' }}
+                      >
                         {GRUPOS.map((g) => <option key={g} value={g}>{g}</option>)}
                       </select>
                     </div>
                     <div>
                       <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Nivel</label>
-                      <select value={rutinaEditando.nivel} onChange={(e) => setRutinaEditando({ ...rutinaEditando, nivel: e.target.value })} style={{ width: '100%', background: '#05080c', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff' }}>
+                      <select 
+                        value={rutinaEditando.nivel} 
+                        onChange={(e) => setRutinaEditando({ ...rutinaEditando, nivel: e.target.value })} 
+                        style={{ width: '100%', background: '#05080c', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff', boxSizing: 'border-box' }}
+                      >
                         {NIVELES.map((n) => <option key={n} value={n}>{n}</option>)}
                       </select>
                     </div>
                   </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
                     <div>
-                      <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Duración (min)</label>
-                      <input type="number" min="1" value={rutinaEditando.duracion} onChange={(e) => setRutinaEditando({ ...rutinaEditando, duracion: e.target.value })} style={{ width: '100%', background: '#05080c', border: formErrors.duracion ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff' }} />
+                      <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        Duración (min) <span style={{ color: '#ff4d4d' }}>*</span>
+                      </label>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="480"
+                        placeholder="45"
+                        value={rutinaEditando.duracion ?? ''} 
+                        onChange={(e) => {
+                          setRutinaEditando({ ...rutinaEditando, duracion: e.target.value });
+                          if (formErrors.duracion) setFormErrors({ ...formErrors, duracion: null });
+                        }} 
+                        style={{ 
+                          width: '100%', 
+                          background: '#05080c', 
+                          border: formErrors.duracion ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', 
+                          padding: '12px 16px', 
+                          borderRadius: '10px', 
+                          color: '#fff',
+                          boxSizing: 'border-box'
+                        }} 
+                      />
+                      {formErrors.duracion && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '5px', display: 'block' }}>{formErrors.duracion}</span>}
                     </div>
                     <div>
-                      <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>Calorías Estimadas</label>
-                      <input type="number" min="1" value={rutinaEditando.calorias} onChange={(e) => setRutinaEditando({ ...rutinaEditando, calorias: e.target.value })} style={{ width: '100%', background: '#05080c', border: formErrors.calorias ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff' }} />
+                      <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                        Calorías Estimadas <span style={{ color: '#ff4d4d' }}>*</span>
+                      </label>
+                      <input 
+                        type="number" 
+                        min="1" 
+                        max="5000"
+                        placeholder="300"
+                        value={rutinaEditando.calorias ?? ''} 
+                        onChange={(e) => {
+                          setRutinaEditando({ ...rutinaEditando, calorias: e.target.value });
+                          if (formErrors.calorias) setFormErrors({ ...formErrors, calorias: null });
+                        }} 
+                        style={{ 
+                          width: '100%', 
+                          background: '#05080c', 
+                          border: formErrors.calorias ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', 
+                          padding: '12px 16px', 
+                          borderRadius: '10px', 
+                          color: '#fff',
+                          boxSizing: 'border-box'
+                        }} 
+                      />
+                      {formErrors.calorias && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '5px', display: 'block' }}>{formErrors.calorias}</span>}
                     </div>
                   </div>
                 </div>
@@ -388,8 +587,30 @@ const Rutinas = () => {
               {activeTab === 'media' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                   <div>
-                    <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>URL de Imagen/Video (Opcional)</label>
-                    <input type="url" placeholder="https://..." value={rutinaEditando.mediaUrl} onChange={(e) => setRutinaEditando({ ...rutinaEditando, mediaUrl: e.target.value, tipoMedia: /\.(mp4|webm|ogg)$/i.test(e.target.value) ? 'video' : 'imagen' })} style={{ width: '100%', background: '#05080c', border: '1px solid rgba(255,255,255,0.1)', padding: '12px 16px', borderRadius: '10px', color: '#fff' }} />
+                    <label style={{ display: 'block', color: 'var(--admin-muted)', marginBottom: '8px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                      URL de Imagen/Video (Opcional)
+                    </label>
+                    <input 
+                      type="url" 
+                      maxLength={1000}
+                      placeholder="https://..." 
+                      value={rutinaEditando.mediaUrl || ''} 
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setRutinaEditando({ ...rutinaEditando, mediaUrl: val, tipoMedia: /\.(mp4|webm|ogg)$/i.test(val) ? 'video' : 'imagen' });
+                        if (formErrors.mediaUrl) setFormErrors({ ...formErrors, mediaUrl: null });
+                      }} 
+                      style={{ 
+                        width: '100%', 
+                        background: '#05080c', 
+                        border: formErrors.mediaUrl ? '1px solid #ff4d4d' : '1px solid rgba(255,255,255,0.1)', 
+                        padding: '12px 16px', 
+                        borderRadius: '10px', 
+                        color: '#fff',
+                        boxSizing: 'border-box'
+                      }} 
+                    />
+                    {formErrors.mediaUrl && <span style={{ color: '#ff4d4d', fontSize: '0.75rem', marginTop: '5px', display: 'block' }}>{formErrors.mediaUrl}</span>}
                   </div>
                   <div style={{ height: '220px', background: '#05080c', border: '1px dashed var(--admin-muted)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                      {rutinaEditando.mediaUrl ? (
@@ -408,7 +629,13 @@ const Rutinas = () => {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
                   <ExerciseEditor 
                     value={rutinaEditando.detalles || []} 
-                    onChange={detalles => setRutinaEditando({...rutinaEditando, detalles})} 
+                    onChange={detalles => {
+                      setRutinaEditando({...rutinaEditando, detalles});
+                      if (formErrors.ejercicios) {
+                        setFormErrors(prev => ({ ...prev, ejercicios: null, general: null }));
+                      }
+                    }} 
+                    errors={exerciseErrors}
                   />
                   {formErrors.ejercicios && (
                     <div style={{ color: '#ff4d4d', fontSize: '0.85rem', marginTop: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
