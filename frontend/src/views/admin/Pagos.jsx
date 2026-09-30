@@ -143,6 +143,13 @@ export default function AdminPagos() {
     setIsSubmitting(true);
 
     try {
+      const idempotencyKey = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+            const r = (Math.random() * 16) | 0;
+            return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16);
+          });
+
       const response = await fetch(`${API_URL}/recepcion/pagos`, {
         method: 'POST',
         headers: {
@@ -150,9 +157,11 @@ export default function AdminPagos() {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          id_cliente: clienteSeleccionado.id_usuario, 
-          id_plan: idPlan,
-          metodo_pago: metodoPago,
+          idempotency_key: idempotencyKey,
+          id_cliente: Number(clienteSeleccionado.id_usuario), 
+          id_plan: Number(idPlan),
+          monto: Number(planSeleccionado?.precio || 0),
+          metodo_pago: metodoPago.toLowerCase(),
         }),
       });
 

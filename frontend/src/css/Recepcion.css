@@ -26,54 +26,98 @@ html, body, #root {
   --recep-accent: #00ff88;
   --recep-accent-2: #00d4ff;
   --recep-border: rgba(255, 255, 255, 0.07);
+  --admin-bg: #10161e;
+  --admin-border: rgba(255, 255, 255, 0.07);
+  --admin-muted: #8e9ba8;
+  --admin-card: #10161e;
+  --admin-accent: #00ff88;
 }
 
 /* ==================== LAYOUT Y SIDEBAR ==================== */
 .recepcion-layout {
   display: grid;
-  grid-template-columns: 260px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr);
   min-height: 100vh;
+  width: 100%;
   background: radial-gradient(circle at 20% 0%, #0a1a12 0%, #050608 45%);
 }
 
 .recepcion-sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-width: 260px;
+  max-width: 260px;
+  width: 260px;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--recep-sidebar);
   border-right: 1px solid var(--recep-border);
-  padding: 24px 16px;
+  padding: 22px 16px;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 }
 
-.sidebar-header {
+.recepcion-sidebar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.recepcion-sidebar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+}
+
+.sidebar-brand {
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 40px;
-  padding-left: 10px;
+  min-width: 0;
+  padding: 4px 6px 18px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--recep-border);
 }
 
-.brand-mark {
-  font-size: 2rem;
+.brand-logo-wrap {
+  position: relative;
+  width: 46px;
+  height: 46px;
+  flex: 0 0 46px;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid rgba(0,255,136,0.35);
+  background: linear-gradient(135deg, rgba(0,255,136,0.12), rgba(0,212,255,0.12));
+  box-shadow: 0 0 20px rgba(0,255,136,0.16);
 }
 
-.brand-text {
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.brand-titles {
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  line-height: 1.1;
+  line-height: 1;
 }
 
-.brand-top {
-  font-size: 0.75rem;
-  font-weight: 700;
+.brand-title-top {
   color: #8e9ba8;
-  text-transform: uppercase;
+  font-size: 0.66rem;
+  font-weight: 800;
   letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 2px;
 }
 
-.brand-bottom {
+.brand-title-bottom {
   font-family: 'Great Vibes', cursive;
-  font-size: 1.6rem;
+  font-size: 1.55rem;
   color: var(--recep-accent);
+  line-height: 1.1;
 }
 
 .sidebar-nav {
@@ -81,6 +125,75 @@ html, body, #root {
   flex-direction: column;
   gap: 8px;
   flex: 1;
+}
+
+.sidebar-user-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin-top: auto;
+  padding: 16px 8px 0;
+  border-top: 1px solid var(--recep-border);
+}
+
+.user-avatar-large {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #00ff88, #00d4ff);
+  color: #05080c;
+  font-size: 1.4rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 22px rgba(0, 212, 255, 0.25);
+  margin-bottom: 4px;
+}
+
+.user-name-large {
+  color: #fff;
+  font-size: 0.92rem;
+  font-weight: 800;
+  text-align: center;
+  margin: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-role-large {
+  color: #8e9ba8;
+  font-size: 0.76rem;
+  font-weight: 600;
+  text-align: center;
+  margin: 0 0 12px 0;
+}
+
+.logout-btn-reception {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 77, 77, 0.3);
+  background: rgba(255, 77, 77, 0.06);
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.logout-btn-reception:hover {
+  background: rgba(255, 77, 77, 0.16);
+  border-color: #ff4d4d;
+  color: #fff;
 }
 
 .nav-item {
